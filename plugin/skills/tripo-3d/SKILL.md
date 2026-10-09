@@ -113,11 +113,12 @@ path instead.
   When the user only wants GLB, that convert buys a format nobody asked for —
   use a chain-free preset instead (`toy` for low-poly, with `-p face_limit=...`)
   or tell the user the extra format costs credits before running.
-- `--then <steps>` overrides the chain. Steps: `texture` `stylize` `convert` `import`
+- `--then <steps>` overrides the chain. Steps: `texture` `convert` `import`
   `rig-check` `rig` `retarget` `segment` `complete` `decimate` `smartsegment`.
-  There is no `refine` step — the API endpoint behind it has been retired.
+  There is no `refine` or `stylize` step — the API endpoints behind them have been
+  retired.
   Arguments use `step:key=value`; a bare value maps to the step's primary argument
-  (`convert:fbx`, `stylize:lego`, `decimate:5000`).
+  (`convert:fbx`, `decimate:5000`).
 - `-o, --out <dir>` sets the **parent** directory, not the artifact directory. `make`
   always creates `<dir>/tripo-out/<name>-<id8>/` underneath it, so `-o ./assets` writes
   `./assets/tripo-out/<name>-<id8>/model.glb`. Pass `-o` to keep artifacts inside the
@@ -312,7 +313,6 @@ URL only, cannot follow a task). A bare value after `:` sets the primary argumen
 | step | primary arg | arguments and constraints |
 | --- | --- | --- |
 | `texture` | `texture_quality` | `standard`/`detailed`/`extreme`, `pbr`, `texture_seed`; `model` `v3.0-20250812` (default) / `v3.5-20260815` (newest; also unlocks `delight`) / `v2.5-20250123`. Re-textures any model, including imported files |
-| `stylize` | `style` | `lego` `voxel` `voronoi` `minecraft`; `block_size` 32–128 (minecraft only, default 80) |
 | `convert` | `format` | `GLTF` `USDZ` `FBX` `OBJ` `STL` `3MF` (3MF = single-colour print). Mesh: `quad`, `force_symmetry` (quad only), `face_limit`, `flatten_bottom` + `flatten_bottom_threshold` (0.01). Texture: `texture_size` (4096), `texture_format` `JPEG`/`PNG`/`WEBP`/`BMP`/`TIFF`/`TARGA`/`HDR`/`DPX`/`OPEN_EXR`, `bake` (true), `pack_uv`, `export_vertex_colors` (OBJ/GLTF only). Export: `pivot_to_center_bottom`, `scale_factor`, `with_animation` (true), `animate_in_place`, `part_names`, `export_orientation`, `fbx_preset` `blender`/`3dsmax`/`mixamo`. `quad` with `GLTF` is rejected. Any non-default option bills the complex tier (10 credits instead of 5) |
 | `import` | – | GLB/GLTF/FBX/OBJ/STL ≤150 MB; `make <file>` runs it implicitly. A `.gltf` references external files, so it only works as a URL — pass a `.glb` for local files |
 | `rig-check` | – | free. GLB input. Returns `riggable` and `rig_type`: `biped` `quadruped` `hexapod` `octopod` `avian` `serpentine` `aquatic`. Gate step — the chain continues from the same model |
