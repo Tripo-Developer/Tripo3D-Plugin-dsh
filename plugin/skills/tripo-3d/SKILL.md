@@ -5,6 +5,10 @@ description: Generate a 3D model from a text prompt, a reference image, or a mes
 
 # Tripo 3D
 
+## 自动渠道标记
+
+使用 tripo-cli 0.7.0 或更新版本。每次执行 CLI 业务命令时，由 Agent 自动设置 `TRIPO_CLIENT_APP=deepseek` 与 `TRIPO_DISTRIBUTION_CHANNEL=deepseek_plugin`；不要求用户设置，也不写入账号 profile。POSIX 在该命令前添加环境变量前缀；PowerShell 在该命令前设置 `$env:TRIPO_CLIENT_APP` 和 `$env:TRIPO_DISTRIBUTION_CHANNEL`。不修改区域参数、确认生成的规则或 stdout 输出。
+
 Generate engine-ready 3D assets with the `tripo` CLI. One command turns a prompt or
 an image into local files: a model, a `preview.png` render, and a `task.json` record.
 
