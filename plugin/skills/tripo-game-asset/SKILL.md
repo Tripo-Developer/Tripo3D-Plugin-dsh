@@ -1,27 +1,26 @@
 ---
 name: tripo-game-asset
-description: Recipes for producing game-ready 3D assets with Tripo and wiring them into a game project - low-poly props on a face budget, PBR hero assets, LOD chains, and rigged characters with locomotion clips for Unity, Unreal, Godot or Three.js. Use when the user is building a game or real-time 3D scene and needs props, characters, placeholder art, LODs, or an animated rig, rather than a single one-off model. 中文触发词：游戏资产、游戏素材、游戏模型、低模道具、面数预算、LOD、角色绑骨、走跑跳动画、Unity/Unreal/Godot 模型导入。
+description: Recipes for producing game-ready 3D assets with Tripo and wiring them into a game project - low-poly props on a face budget, PBR hero assets, LOD chains, and rigged characters with walk, run and jump clips for Unity, Unreal, Godot or Three.js. Use when the user, in any language, is building a game or real-time 3D scene and needs props, characters, placeholder art, LODs or an animated rig, rather than a single one-off model.
 ---
 
 # Game asset pipeline
 
-## 自动渠道标记
-
-使用 tripo-cli 0.7.0 或更新版本。每次执行 CLI 业务命令时，由 Agent 自动设置 `TRIPO_CLIENT_APP=deepseek` 与 `TRIPO_DISTRIBUTION_CHANNEL=deepseek_plugin`；不要求用户设置，也不写入账号 profile。POSIX 在该命令前添加环境变量前缀；PowerShell 在该命令前设置 `$env:TRIPO_CLIENT_APP` 和 `$env:TRIPO_DISTRIBUTION_CHANNEL`。不修改区域参数、确认生成的规则或 stdout 输出。
-
 Recipes on top of the `tripo-3d` skill. Read that skill first for the shell
-requirement, auth, the blocking behaviour of `tripo make`, exit codes, and credit
-rules. Every recipe here is a shell command: if this environment cannot execute
-shell commands, stop and tell the user what is blocked instead of pretending to
-run them. Every recipe also spends credits, so it goes through that skill's
-"Plan first, run after the user confirms" step — list each API call the recipe
-makes and its estimated cost, get a yes, run, then report the billed total
-**and** the per-task breakdown.
+requirement, the command form, auth, the blocking behaviour of `tripo make`, exit
+codes, credit rules and the parameter rules that fail quietly. Every `tripo ...`
+command here uses that skill's command form:
+`TRIPO_CLIENT_APP=deepseek TRIPO_DISTRIBUTION_CHANNEL=deepseek_plugin npx tripo-cli@latest <args>`
+on POSIX, or the PowerShell equivalent from that skill. Every recipe here is a shell
+command: if this environment cannot execute shell commands, stop and tell the user
+what is blocked instead of pretending to run them. Every recipe also spends credits,
+so it goes through that skill's "Plan first, run after the user confirms" step —
+list each API call the recipe makes and its estimated cost, get a yes, run, then
+report the billed total **and** the per-task breakdown.
 
 The point of these recipes is that assets land in the project's own directory
-structure. Always pass `-o` pointing at wherever the project keeps its art — but note
-`-o` is the parent: the files end up in `<dir>/tripo-out/<name>-<id8>/`, so move them
-to their final location afterwards if the user named a specific path.
+structure. Always pass `-o` pointing at wherever the project keeps its art. `-o` is
+the parent directory (see `tripo-3d`), so move the files to their final location
+afterwards if the user named a specific path.
 
 ## Pick a budget first
 
@@ -42,18 +41,15 @@ tripo make "a health potion bottle" --for game-mobile \
 Which generation model fits the budget:
 
 - **P1** (`tripo-p1`, 50–20000 faces) — the default low-poly choice; clean, game-style
-  topology out of the box. The CLI picks it automatically for any `face_limit` ≤ 20000
-  or a "low poly" prompt.
+  topology out of the box, picked automatically for budgets up to 20000 faces.
 - **P2** (`--model tripo-p2`, 48–50000 tri / 48–25000 quad; **Preview**) — P1 with
   quads and a bigger budget: `-p quad=true` for subdivision-friendly or
-  hand-edit-friendly low-poly. `tripo-p2` is the CLI alias; the request carries
-  `model=P2-20260801` (the API rejects the alias itself). Costs 100+ credits per
-  generation versus 30–50 for P1; never auto-selected.
+  hand-edit-friendly low-poly. Costs 100+ credits per generation versus 30–50 for P1;
+  never auto-selected.
 - **v3.1 + `smart_low_poly`** (`--model tripo-v3.1 -p smart_low_poly=true -p face_limit=<500–20000>`)
   — high-fidelity detail with hand-modelled-style low-poly topology, when P1's look is
-  too simple. Without `--model`, a `face_limit` ≤ 20000 silently switches to P1.
-- **v3.1 + `decimate`** — hero-quality source, then LODs (next section). P1/P2 do not
-  support `smart_low_poly`, `generate_parts` or `geometry_quality`.
+  too simple. Keep the explicit `--model`: a low `face_limit` alone selects P1.
+- **v3.1 + `decimate`** — hero-quality source, then LODs (next section).
 
 ## Props
 
@@ -73,8 +69,9 @@ tripo make "a stone golem" --for game-pc --then decimate:5000 --json --yes
 tripo make @last --then decimate:1500,convert:fbx --json --yes
 ```
 
-`decimate` bakes normals by default, so the low LODs keep the silhouette detail of
-the source. Each `@last` continues from the previous task rather than regenerating.
+`decimate` bakes the source's textures onto the low-poly by default, so the low LODs
+keep the look of the source. Each `@last` continues from the previous task rather than
+regenerating.
 
 **`decimate`'s face budget is a target, not a ceiling** — a 1500-face request can come
 back at ~1900 triangles. Read the actual triangle count from the result before handing
@@ -82,8 +79,8 @@ an LOD to a project with a hard budget, and reduce it locally if it overshoots.
 Generation's own `face_limit` does hold as an upper bound, so this caveat is specific
 to `decimate`.
 
-`decimate` accepts 500–20000 faces (500–10000 with `quad=true`) and bakes textures onto
-the low-poly by default. For a source above 2M faces or a budget above 20000, use
+`decimate` accepts 500–20000 faces (500–10000 with `quad=true`). For a source above
+2M faces or a budget above 20000, use
 `decimate:face_limit=<n>,model=v1.0` — the v1.0 model takes up to 2 000 000 faces but
 has no bake. Alternatively set `face_limit` on the `convert` step, which decimates during
 export at the complex-convert price.
@@ -97,8 +94,8 @@ tripo make @last --then texture --json --yes                    # texture the pa
 tripo make hero.glb --then segment:v2.0-20260430,complete --json --yes   # split an existing mesh, then close the cut faces
 ```
 
-- `generate_parts` (v3.1 only, +20 credits) outputs editable parts but requires bare
-  geometry — `texture`/`pbr` must be off; re-texture as a second step.
+- `generate_parts` (v3.1 only, +20 credits) outputs editable parts; it needs bare
+  geometry (see `tripo-3d`), hence the separate texture step.
 - `segment` splits any model; `v2.0-20260430` adds `segmentation_granularity=simple|balanced|detailed`
   and `split_by_connectivity`. `complete` fills the holes segmentation leaves
   (`completion_mode=quick_cap` is the cheap cap-only variant). Export single parts with
@@ -155,16 +152,13 @@ tripo make "a robot soldier, T-pose" --json --yes \
   emits a meshopt-compressed GLB for smaller downloads.
 - **Unity / Unreal**: FBX via `--then convert:fbx`, or `--for game-mobile` which
   already converts. Useful convert options: `fbx_preset=blender|3dsmax|mixamo`,
-  `export_orientation=+x|-x|+y|-y` (forward axis for the engine),
+  `export_orientation=+x|-x|+y|-y` (forward axis for the engine; final convert only),
   `pivot_to_center_bottom=true` (pivot at the feet), `scale_factor=<n>` (unit fix),
   `texture_format=PNG` (lossless instead of the JPEG default), `pack_uv=true`
   (single atlas). Any of these bills the complex convert tier (10 credits, not 5).
-- Set `export_orientation` **only on the final convert**, never at generation when
-  more steps follow: downstream steps ignore it and return a wrongly oriented model
-  that still reports success.
-- Quads (`-p quad=true`) force FBX — glTF cannot store them, so `convert:glb`
-  combined with quads is rejected. Quads are v3.1 or P2 only — on P1 the CLI strips
-  `quad` and suggests `--model tripo-p2`.
+- Quads (`-p quad=true`, v3.1 or P2 only) force FBX output, so plan an FBX pipeline
+  for quad assets: GLB is not a convert target, and converting a quad mesh to `GLTF`
+  is rejected.
 - `texture_size` is set on the convert step, not at generation:
   `--then convert:format=FBX,texture_size=2048`. Texture *quality* is set at
   generation: `-p texture_quality=detailed` (HD, +10 credits) or `extreme` (8K, +20).

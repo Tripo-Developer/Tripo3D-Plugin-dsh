@@ -1,16 +1,18 @@
 ---
 name: tripo-3d
-description: Generate a 3D model from a text prompt, a reference image, or a mesh, and write it into the project as GLB, FBX, OBJ, STL, USDZ or 3MF. Use when the user asks for a 3D asset, prop, character or texture for a game, renderer, AR scene or 3D print — e.g. "make me a low-poly X", "turn this image into 3D", "rig this character", "convert to FBX". 中文触发词：生成3D模型、建模、3D素材、图生3D、文生3D、绑骨、角色动画、贴图、低模、减面、3D打印、手办、格式转换。Also use to re-run, convert or inspect a previous Tripo generation (v3.1, P1, P2 Preview).
+description: Generate a 3D model from a text prompt, a reference image, or a mesh, and write it into the project as GLB, FBX, OBJ, STL, USDZ or 3MF. Use when the user asks, in any language, for a 3D asset, prop, character, texture, rig, animation, low-poly or decimated mesh, format conversion or 3D print - e.g. "make me a low-poly X", "turn this image into 3D", "rig this character", "convert to FBX". Also use to re-run, convert or inspect a previous Tripo generation (v3.1, P1, P2 Preview).
 ---
 
 # Tripo 3D
 
-## 自动渠道标记
-
-使用 tripo-cli 0.7.0 或更新版本。每次执行 CLI 业务命令时，由 Agent 自动设置 `TRIPO_CLIENT_APP=deepseek` 与 `TRIPO_DISTRIBUTION_CHANNEL=deepseek_plugin`；不要求用户设置，也不写入账号 profile。POSIX 在该命令前添加环境变量前缀；PowerShell 在该命令前设置 `$env:TRIPO_CLIENT_APP` 和 `$env:TRIPO_DISTRIBUTION_CHANNEL`。不修改区域参数、确认生成的规则或 stdout 输出。
-
 Generate engine-ready 3D assets with the `tripo` CLI. One command turns a prompt or
 an image into local files: a model, a `preview.png` render, and a `task.json` record.
+
+Every model this skill delivers comes from Tripo. When a step cannot complete — no
+login, no answer about the region, no confirmation of the plan — stop at that step and
+ask the user, even if the request reads as if a finished file is expected. Do not
+substitute a model you build yourself (procedural code, CAD scripts, another tool), and
+do not install packages to work around the missing step.
 
 ## Requires a shell
 
@@ -19,12 +21,37 @@ Node.js on the host. If this environment cannot execute shell commands, or a
 sandbox blocks `npx` or the network, stop here: tell the user exactly what is
 blocked instead of describing the commands as if they had run.
 
+## Command form
+
+Requires `tripo-cli` 0.7.0 or later. In this skill, in `tripo-game-asset` and in
+[`references/capability.md`](references/capability.md), `tripo <args>` always means:
+
+- POSIX: `TRIPO_CLIENT_APP=deepseek TRIPO_DISTRIBUTION_CHANNEL=deepseek_plugin npx tripo-cli@latest <args>`
+- PowerShell: `$env:TRIPO_CLIENT_APP='deepseek'; $env:TRIPO_DISTRIBUTION_CHANNEL='deepseek_plugin'; npx tripo-cli@latest <args>`
+
+Set both variables in the same shell call as the command: every call starts a fresh
+shell, so an earlier `export` is lost. The user does not have to set them, and they
+are never written to an account profile. The two values only name this plugin and
+carry no user data; the CLI's usage analytics read them (for international-site calls
+those events also carry the user's Tripo account id since CLI 0.7.1), and
+`TRIPO_ANALYTICS_ENABLED=0` turns the analytics and that account lookup off. They do
+not change the region, the confirmation rules or the stdout output.
+
+`npx` downloads the CLI on first use, so a fresh machine needs no manual install. If
+`npx` itself is missing, Node.js is not installed — have the user install Node.js LTS
+first. On China-mainland networks, when the download stalls, switch to the npmmirror
+registry and retry: `npm config set registry https://registry.npmmirror.com`.
+Installing globally (`npm install -g tripo-cli`) makes repeated calls faster — ask
+before doing it. A global `tripo` may replace `npx tripo-cli@latest` only when
+`tripo --version` reports 0.7.0 or later.
+
 ## Before the first generation
 
 ```bash
-npx tripo-cli@latest doctor     # verifies key, network, region, balance
+TRIPO_CLIENT_APP=deepseek TRIPO_DISTRIBUTION_CHANNEL=deepseek_plugin npx tripo-cli@latest doctor   # verifies key, network, region, balance
 ```
 
+That is `tripo doctor` written out in full; the rest of this skill uses the short form.
 Auth resolves from `TRIPO_API_KEY` (a `tsk_...` key) or a previous `tripo login`.
 If `doctor` reports no key, start the device login yourself — do not ask for
 permission first, and never ask the user to paste a key into the chat.
@@ -38,31 +65,30 @@ Tripo has two regions with separate accounts and consoles:
 
 Pick the region yourself only when the context already says which site the
 user's account is on — they mentioned it, `tripo whoami` shows a profile, or
-`TRIPO_REGION` is set. Otherwise ask one question before starting the login:
-"你的 Tripo 账号在国内站还是海外站？" An account lives in exactly one region,
-and starting the device flow on the wrong console sends the user to a site
-where their account does not exist. No account yet? China-mainland users
-should pick `cn` (Alipay top-up), everyone else `ov` — signing up during the
-login flow is fine and new accounts get free credits.
+`TRIPO_REGION` is set. Otherwise, before starting the login, ask one question in
+the user's language: is their Tripo account on the China site or the international
+site? An account lives in exactly one region, and starting the device flow on the
+wrong console sends the user to a site where their account does not exist. No
+account yet? China-mainland users should pick `cn` (Alipay top-up), everyone else
+`ov` — signing up during the login flow is fine and new accounts get free credits.
 
 ```bash
-npx tripo-cli@latest login --region cn --yes    # or: --region ov
+tripo login --region cn --yes    # or: --region ov
 ```
 
 `--yes` forces the non-interactive device flow. The command prints a
 verification URL and a one-time code right away, then blocks until the user
-approves in a browser — up to 15 minutes. Do not kill it early, and do not
-wait for it to exit before talking to the user: read the URL and code from
-its output while it is still running (run it in the background or stream its
-stderr). **Show the user the full verification URL and the code verbatim**,
-plus the matching console address (`cn`: https://developers.tripo3d.com,
-`ov`: https://developers.tripo3d.ai), and walk them through every step —
-assume they have never seen this page:
+approves in a browser — up to 15 minutes. Start it as a background job (the shell
+tool's `run_in_background: true`) and read the URL and code with `job_output` while
+it is still running; do not kill it early, and do not wait for it to exit before
+talking to the user. **Show the user the full verification URL and the code
+verbatim**, plus the console address of their region from the table above, and
+walk them through every step — assume they have never seen this page:
 
 1. Open the verification URL in a browser.
 2. If the page asks to sign in, they are not logged in on the web either:
-   sign in — or sign up at the console address above; new accounts get
-   free credits — then return to the verification page.
+   sign in — or sign up at that console address; new accounts get free
+   credits — then return to the verification page.
 3. Type the one-time code into the **"Verification code"** field.
 4. An account that already has several API keys is asked to pick one — any
    of them works, the CLI will use the chosen key. With no keys, one is
@@ -70,22 +96,8 @@ assume they have never seen this page:
 5. Click the **Authorize** button. The key arrives in the CLI and is stored —
    nothing to copy by hand.
 
-When the command exits 0, re-run `doctor` and continue. Exit code 3 means the
-code expired or was denied — run the same login command again for a fresh
-code. If an older CLI rejects headless login with a usage error, fall back to
-asking the user to run `npx tripo-cli@latest login` in their own terminal.
-
-Installing globally (`npm install -g tripo-cli`) makes repeated calls faster and
-is what makes the bare `tripo` command exist — ask before doing it. Without a
-global install, run every `tripo ...` command in this and related skills as
-`npx tripo-cli@latest ...`; npx downloads the CLI on first use, so a fresh machine
-needs no manual install. If `npx` itself is missing, Node.js is not installed —
-have the user install Node.js LTS first. On China-mainland networks, when the
-npx download stalls, switch to the npmmirror registry and retry:
-`npm config set registry https://registry.npmmirror.com`.
-
-Exit code 3 means auth failed; run `tripo doctor`, which diagnoses key-vs-region
-mismatches (`ov` = international, `cn` = China mainland) and prints the exact fix.
+When the login job exits 0, re-run `doctor` and continue. Exit code 3 means the
+code expired or was denied — run the same login command again for a fresh code.
 
 ## The command
 
@@ -131,9 +143,10 @@ path instead.
   alone cannot put it there. (`tripo task get <id> --download -o <dir>` is the
   exception: its `-o` is the final directory.)
 - `-p key=value` passes an API parameter, repeatable. Useful ones: `face_limit=15000`,
-  `texture=false pbr=false` (bare geometry, skips texture credits), `auto_size=true`,
-  `texture_quality=detailed`, `negative_prompt=...`. The full list, with the
-  constraints the server enforces, is in "Capability reference" below.
+  `texture=false pbr=false` (bare geometry for 3D printing and other untextured
+  output; skips texture credits entirely), `auto_size=true`, `texture_quality=detailed`,
+  `negative_prompt=...`. The full list, with the constraints the server enforces, is
+  in [`references/capability.md`](references/capability.md).
 - `--model <m>` forces the generation model, `--seed <n>` fixes `model_seed`,
   `-n <2-4>` generates that many candidates with different seeds (`-n` together with
   `--then` needs an interactive terminal to pick the winner — chain afterwards with
@@ -143,6 +156,25 @@ path instead.
   timeout. `--no-wait` submits and exits with `{"task_id"}` — only for a run the user
   explicitly wants to leave in the background; resume it with `tripo task watch <id>
   --download`. `--dry-run` plans and validates without submitting (see next section).
+
+### Parameter rules that fail quietly
+
+The full tables are in the reference file; these four rules waste credits or return
+a wrong result when missed:
+
+- **P1 strips what it does not support.** P1 (`face_limit` 50–20000) has no `quad`,
+  `smart_low_poly`, `generate_parts` or `geometry_quality`; the CLI removes them with
+  a warning and the result changes. Use `--model tripo-p2` (Preview) for low-poly
+  quads and `--model tripo-v3.1` for the others.
+- **`generate_parts` needs bare geometry.** Always pass `texture=false pbr=false` with
+  it — the server defaults `texture` to true and rejects the request (`1004`) if
+  either is on; the CLI only corrects an explicit `true`. Re-texture afterwards with
+  `--then texture`.
+- **`quad=true` forces FBX output.** Quads cannot be stored in glTF, so converting a
+  quad mesh to `GLTF` is rejected.
+- **`export_orientation` belongs on the final `convert` step.** Set at generation
+  while more steps follow, the downstream steps (texture, rig, convert…) read the
+  default orientation and return a wrongly oriented `success` with no error.
 
 ## Plan first, run after the user confirms
 
@@ -180,9 +212,7 @@ aliases turned into wire values, illegal parameters already stripped). `errors` 
 blocking — the dry run exits 2 on them, exactly like the real run would before
 spending; fix them and dry-run again. `warnings` are auto-adjustments (`P1 does not
 support quad (removed)`) — show them to the user, they change the outcome. Only when
-`valid` is true turn the steps into the plan below. On a CLI too old for `--dry-run`
-(0.4.0 rejects the flag with a usage error, exit 2) build the same plan by hand from
-the tables in this skill.
+`valid` is true turn the steps into the plan below.
 
 Example of the shape (a `--for game-mobile` text prompt):
 
@@ -200,207 +230,67 @@ one per asset. Free commands (`doctor`, `balance`, `usage`, `whoami`, `task get|
 watch`, `history`, `rig-check`, `docs`, `files upload`, anything with `--dry-run`)
 need no confirmation.
 
-Newer CLI builds print the same plan card on stderr right before submitting (a TTY
-user is asked "Run this plan?"; with `--yes` or when headless it is printed and the
-run continues; `--quiet` hides it). Use it to check that what ran matches what you
-showed, and say so if it differs. Older builds print no card — the plan you show the
-user does not depend on it.
+Right before submitting, the CLI prints the same plan card on stderr (`--quiet` hides
+it); check that what ran matches what you showed, and say so if it differs.
 
-## Rules that matter
+## Running `tripo make`
 
 1. **`tripo make` is blocking.** It submits, polls, downloads, then exits. Wait for
    the process to finish. Do not re-implement polling, do not set a timeout shorter
    than the CLI's own (default 1800s), and do not treat a `task_id` appearing in the
-   logs as completion.
+   logs as completion. When the command outlives the shell tool's foreground timeout,
+   the tool returns a job id instead of an exit code and the command keeps running:
+   wait for it with `job_output` (`wait: true`) or for the completion notice, then
+   read the result. Never start the same `tripo make` again while its job is
+   running — that pays twice.
 2. **stdout is the contract.** With `--json`, stdout carries exactly one final JSON
    line; progress goes to stderr. Parse the last stdout line, not the logs.
 3. **Branch on exit codes**, don't parse error text:
    `0` ok · `1` fatal, and what `doctor` returns when a critical check fails ·
-   `2` bad parameters · `3` auth · `4` insufficient credits — tell the user to run
-   `tripo topup` in their own terminal (it opens the billing page and waits for the
-   credits to land); do not run it yourself · `5` content
-   policy · `6` task failed (credits auto-refunded, `tripo redo` often succeeds) ·
-   `7` network · `8` not found — a task id only resolves under the key that created
-   it, so when an older task 404s, fall back to passing the local model file ·
-   `9` rate limit (retry with backoff).
+   `2` bad parameters · `3` auth — run `tripo doctor`, which diagnoses key-vs-region
+   mismatches (`ov` = international, `cn` = China mainland) and prints the exact fix ·
+   `4` insufficient credits — tell the user to run `tripo topup` in their own terminal
+   (it opens the billing page and waits for the credits to land); do not run it
+   yourself · `5` content policy · `6` task failed (credits auto-refunded,
+   `tripo redo` often succeeds) · `7` network · `8` not found — a task id only
+   resolves under the key that created it, so when an older task 404s, fall back to
+   passing the local model file · `9` rate limit (retry with backoff).
 4. **Judge the result before moving on.** The result JSON gives `model_file` and
-   `preview`. Read `preview.png` to check the asset actually matches the request; if
-   it does not, `tripo redo` re-rolls with a new seed.
-5. **Never invent parameters.** Everything the API accepts is listed in "Capability
-   reference" below; `tripo docs --topic commands/generate` and `tripo docs --topic
-   commands/process` print the same tables with more detail, and
-   `tripo docs --topic common-errors` the error table. Do not send the user to the
-   website for a parameter name.
-6. **Let the CLI choose the model version.** It selects `tripo-v3.1` (high fidelity)
-   or `tripo-p1` (low-poly) automatically — see "Models" below for the rule. Only
-   pass `--model` when the user explicitly asks for one or the rule picks wrong.
-
-## Capability reference
-
-Mirrors the official API docs so the agent never has to leave the shell. Everything
-here is passed with `-p key=value` (generation) or `step:key=value` (`--then`).
-
-### Models & Versions
-
-Keywords: model versions · H series (`tripo-v3.x`) · P series (`tripo-p1`, `tripo-p2`
-Preview) · CLI alias → API `model` value · GA / Preview / Legacy · quad.
-
-| `--model` (CLI alias) | wire value sent as `model` | status | use for | limits |
-| --- | --- | --- | --- | --- |
-| `tripo-v3.1` (default) | `v3.1-20260211` | GA | H series, high fidelity: PC/console, film, print | full parameter set |
-| `tripo-p1` | `P1-20260311` | GA | P series, clean low-poly: mobile, UGC, ~2 s mesh | `face_limit` 50–20000; no `quad`, `smart_low_poly`, `generate_parts`, `geometry_quality` (the CLI strips them with a warning); adds `export_uv` |
-| `tripo-p2` | `P2-20260801` | **Preview** | P1 upgrade: low-poly **with quads** or a bigger budget | `face_limit` 48–50000 tri / 48–25000 quad; supports `quad`, still not `smart_low_poly`, `generate_parts`, `geometry_quality` (stripped with a warning). Never auto-selected — needs an explicit `--model` |
-| `tripo-v3.0`, `tripo-v2.5` | `v3.0-20250812`, `v2.5-20250123` | Legacy | only when the user asks | |
-
-**Alias vs wire value.** `tripo-*`, `p1`, `p2`, `v3.1`… are CLI-side aliases: the CLI
-always puts the dated wire value in the request's `model` field (`--model tripo-p2` →
-`"model": "P2-20260801"`), and `task.json` records the value actually used. The v3
-server whitelist accepts wire values only — an alias sent straight to the API returns
-`1004 invalid model` with the allowed list. When the user quotes a model from the
-website, map it through this table; the Models & Versions page lists the marketing
-names, the P Series endpoint pages list the wire values. `tripo-turbo` and
-`tripo-v2.0` appear in older docs but the server rejects them.
-
-Auto-selection: low-poly words in the prompt ("low poly", "voxel") or **any
-`face_limit` ≤ 20000** pick P1; everything else is v3.1. So `-p face_limit=15000` on
-its own switches to P1 — add `--model tripo-v3.1` when the user wants v3.1 quality
-under a face cap.
-
-**P series through the same endpoints.** P1/P2 are not separate endpoints; only the
-`model` value changes. `tripo make` picks P1 by the rule above; for an exact call use
-`tripo generate <endpoint> --model tripo-p1|tripo-p2` (see "2D steps before 3D"). The
-official docs document them as a separate "P Series" tab on each generation page:
-
-| endpoint | H series page | P series page |
-| --- | --- | --- |
-| `POST /v3/generation/text-to-model` | `…/docs/generation-text-to-model/standard` | <https://developers.tripo3d.ai/en/docs/generation-text-to-model/p> |
-| `POST /v3/generation/image-to-model` | `…/docs/generation-image-to-model/standard` | <https://developers.tripo3d.ai/en/docs/generation-image-to-model/p> |
-| `POST /v3/generation/multiview-to-model` | `…/docs/generation-multiview-to-model/standard` | <https://developers.tripo3d.ai/en/docs/generation-multiview-to-model/p> |
-
-Reference pages (status and links only — parameter names come from this skill):
-Models & Versions <https://developers.tripo3d.ai/en/docs/models-and-versions> · P
-Series model detail <https://developers.tripo3d.ai/en/models/p1>.
-
-### Generation parameters
-
-| param | default | notes |
-| --- | --- | --- |
-| `face_limit` | adaptive | upper bound on triangles. v3.1 any; P1 50–20000; P2 48–50000 |
-| `texture`, `pbr` | `true`, `true` | `pbr=true` forces `texture=true`. `texture=false pbr=false` = bare geometry, no texture credits |
-| `texture_quality` | `standard` | `standard` / `detailed` (HD, +10 credits) / `extreme` (8K, +20). The API also has `fast` (v3.5 textures only; same price and texture size as `standard`, less detail), but the CLI's local validation still rejects it with exit 2 — do not pass it until the CLI accepts it |
-| `texture_version` | derived from `model` | pins the texture model independently of the geometry model: `v3.5-20260815` (newest), `v3.0-20250812` (default for v3.x and P-series geometry), `v2.5-20250123` (default for v2.5 geometry). All generation models incl. P1/P2; passes through the CLI unchanged |
-| `delight` | `true` | v3.5 textures only (`texture_version=v3.5-20260815`): remove baked-in lighting from the reference image before texturing; `false` keeps the original shading. Older texture versions ignore it |
-| `geometry_quality` | `standard` | `detailed` = Ultra geometry (+20). v3.x only |
-| `quad` | `false` | quad mesh (+5); **forces FBX output** — quads cannot be stored in GLB. v3.x and P2 |
-| `smart_low_poly` | `false` | hand-modelled-style low-poly topology (+10); with `face_limit`, the window is 500–20000 tri / 500–10000 quad. v3.x only |
-| `generate_parts` | `false` | editable segmented parts (+20). **Always pass `texture=false pbr=false` with it** — the server defaults `texture` to true and rejects the request (`1004`) if either is on; the CLI only corrects an explicit `true`. Re-texture afterwards with `--then texture`. `quad` is ignored; `smart_low_poly` wins and suppresses parts. v3.x only |
-| `auto_size` | `false` | scale the model to real-world metres |
-| `compress` | – | `geometry` = meshopt-compressed output. v3.x only |
-| `model_seed`, `texture_seed`, `image_seed` | random | reproducibility; `task.json` records the seeds used. `--seed` sets `model_seed` |
-| `negative_prompt` | – | text input only, ≤255 chars (prompt ≤1024) |
-| `enable_image_autofix` | `false` | image input: repair a low-quality photo first |
-| `texture_alignment` | `original_image` | image/multiview: `original_image` matches the picture, `geometry` matches the mesh |
-| `orientation` | `default` | image/multiview: `align_image` faces the model like the input viewpoint |
-| `export_uv` | `true` | P series only: `false` skips UV unwrap (faster, smaller file) |
-| `export_orientation` | `+x` | forward axis `+x` `-x` `+y` `-y`. **Generation only**: downstream steps (texture, rig, convert…) read the default orientation and return a wrongly oriented `success` with no error. When a chain follows, leave it unset and pass `export_orientation` to the final `convert` step instead |
-
-Multiview (2–4 images): a front view is mandatory and at least two views are needed.
-Filenames containing `front`, `back`, `left` or `right` assign the views; otherwise
-the order is front, left, back, right.
-
-### Processing steps (`--then`)
-
-Every step accepts `@last`, a task id or a model file as input, except `retarget`
-(needs a `rig` task), `complete` (needs a `segment` task) and `smartsegment` (file or
-URL only, cannot follow a task). A bare value after `:` sets the primary argument.
-
-| step | primary arg | arguments and constraints |
-| --- | --- | --- |
-| `texture` | `texture_quality` | `standard`/`detailed`/`extreme`, `pbr`, `texture_seed`; `model` `v3.0-20250812` (default) / `v3.5-20260815` (newest; also unlocks `delight`) / `v2.5-20250123`. Re-textures any model, including imported files |
-| `convert` | `format` | `GLTF` `USDZ` `FBX` `OBJ` `STL` `3MF` (3MF = single-colour print). Mesh: `quad`, `force_symmetry` (quad only), `face_limit`, `flatten_bottom` + `flatten_bottom_threshold` (0.01). Texture: `texture_size` (4096), `texture_format` `JPEG`/`PNG`/`WEBP`/`BMP`/`TIFF`/`TARGA`/`HDR`/`DPX`/`OPEN_EXR`, `bake` (true), `pack_uv`, `export_vertex_colors` (OBJ/GLTF only). Export: `pivot_to_center_bottom`, `scale_factor`, `with_animation` (true), `animate_in_place`, `part_names`, `export_orientation`, `fbx_preset` `blender`/`3dsmax`/`mixamo`. `quad` with `GLTF` is rejected. Any non-default option bills the complex tier (10 credits instead of 5) |
-| `import` | – | GLB/GLTF/FBX/OBJ/STL ≤150 MB; `make <file>` runs it implicitly. A `.gltf` references external files, so it only works as a URL — pass a `.glb` for local files |
-| `rig-check` | – | free. GLB input. Returns `riggable` and `rig_type`: `biped` `quadruped` `hexapod` `octopod` `avian` `serpentine` `aquatic`. Gate step — the chain continues from the same model |
-| `rig` | `rig_type` | one of the seven types above (default `biped`; take it from rig-check); `spec` `tripo`/`mixamo` (Mixamo = Unity Humanoid-compatible skeleton); `out_format` `glb`/`fbx`; `model` — CLI default `v2.5-20260210` (presets for every body type), legacy `v1.0-20240301` (biped only, 90+ presets); the marketing names `rig-v2.0` / `rig-v1.0` are accepted and normalised to those wire values |
-| `retarget` | `animation` | needs a `rig` task. One clip per `--then retarget:preset:walk`; for several clips use `tripo anim retarget --animation preset:idle preset:walk` (≤5 per task, billed per clip). `out_format` `glb`/`fbx`, `animate_in_place` (no root motion), `bake_animation` (glb only), `export_with_geometry` |
-| `segment` | `model` | `v1.0-20250506` (geometry-based, default) or `v2.0-20260430` (semantic, beta) with `segmentation_granularity` `simple`/`balanced`/`detailed`, `split_by_connectivity`, `ref_image` (overrides the other two) |
-| `complete` | – | needs a `segment` task. `completion_mode` `ai_completion` (default) / `quick_cap` (hole fill, cheaper); `part_names` |
-| `decimate` | `face_limit` | target 500–20000 tri / 500–10000 with `quad=true`; `bake=true` bakes textures onto the low-poly; `part_names`. `model=v1.0` accepts up to 2 000 000 faces but requires `face_limit` and has no `bake`/`part_names`. The budget is a target, not a ceiling |
-| `smartsegment` | `granularity` | file/URL only, so in practice `tripo mesh smartsegment <file> --seg-type image\|model`. `seg_type=image` (photo → model → parts, 85 credits) or `seg_type=model` (GLB only, 55, default); `granularity` `coarse`/`medium`/`fine`; `hint` |
-
-Retarget presets for the v2.5 rig (all body types): `preset:idle` `preset:walk`
-`preset:run` `preset:dive` `preset:climb` `preset:jump` `preset:slash` `preset:shoot`
-`preset:hurt` `preset:fall` `preset:turn`, plus body-specific `preset:quadruped:walk`
-`preset:hexapod:walk` `preset:octopod:walk` `preset:serpentine:march`
-`preset:aquatic:march`. The v1.0 rig uses `preset:biped:<name>` (`idle`, `walk`,
-`run`, `dance_01`…, `greet_01`…, `box_01`…) and is biped only.
-
-### 2D steps before 3D (`tripo generate`)
-
-```bash
-tripo generate text-to-image "full-body front view of a ninja" -p template=t_pose --json --yes
-tripo generate image-to-image sketch.png --prompt "clean concept art, neutral background" --json --yes
-tripo generate image-to-model @last --json --yes           # an image task id is a valid input
-tripo generate image-to-multiview photo.png --json --yes   # 1 image -> front/left/back/right sheet
-tripo generate edit-multiview @last -p 'prompts=[{"view":"front","prompt":"add a sword"}]' --json --yes  # 1-4 {view,prompt} edits on that sheet
-tripo generate image-to-splat photo.png --json --yes       # gaussian splat, not a mesh
-# P series, same 3D endpoints, explicit model (the CLI sends the wire value):
-tripo generate text-to-model "a low poly knight" --model tripo-p1 -p face_limit=8000 --json --yes   # model=P1-20260311
-tripo generate image-to-model photo.png --model tripo-p2 -p quad=true -p face_limit=12000 --json --yes  # model=P2-20260801 (Preview), FBX out
-```
-
-- Templates (`-p template=...`) are whitelisted per endpoint. text-to-image:
-  `t_pose` (the pre-step for rigging), `character_completion`, `asset_extraction`,
-  `variants`, `figure`. image-to-image: `t_pose`, `character_completion`,
-  `3d_enhance` (clean a photo before image-to-model), `variants`, `figure`. The docs
-  also list `head_extraction` and `print_clay`, but they are not on the server-side
-  whitelist the CLI mirrors — expect a parameter error. Shortcuts: `-p t_pose=true`, `-p sketch_to_render=true`.
-- Image models (`--model`, sent as-is — no alias mapping): `seedream_v4`
-  (text-to-image default; not accepted by image-to-image), `seedream_v5`,
-  `gemini-2.5-flash`, `gemini-3-pro`, `gemini-3.1-flash`, `chat_image_2`,
-  `chat_image_2.5_flare` (faster), `chat_image_2.5_sunburst` (keeps untouched regions
-  of an edited image closer to the original) — the two 2.5 models cost the same.
-  `chat_image_1` retires 2026-10-23 and `chat_image_1.5` on 2026-12-01: pick
-  `chat_image_2` or a 2.5 model instead.
-  GPT-image options: `-p quality=low|medium|high` (`chat_image_2`; the 2.5 models add
-  `xhigh`, `max`; omitted = `low`; `high` and above cost extra and take longer; any
-  other model rejects the field), `-p background=auto|opaque|transparent` (2.5 only;
-  `transparent` needs `-p output_format=png`; other models ignore the field).
-  `image-to-image` takes several references via `-p 'inputs=["<url or file_token>", ...]'`
-  (seedream ≤4, gemini ≤10, GPT image ≤16; get tokens with `tripo files upload`),
-  referenced in the prompt as `[image 1]`.
-- `image-to-splat` returns a `.splat` file (30 credits, ~4 min): no texture, rig or
-  convert downstream — use image-to-model when a mesh is needed.
+   `preview`. Read `preview.png` to check the asset actually matches the request. If
+   it does not, show the user the preview and ask before re-rolling with `tripo redo`
+   (new seed) — never re-roll silently.
+5. **Never invent parameters.** Everything the API accepts is listed in
+   [`references/capability.md`](references/capability.md); `tripo docs --topic
+   commands/generate` and `tripo docs --topic commands/process` print the same tables
+   with more detail, and `tripo docs --topic common-errors` the error table. Do not
+   send the user to the website for a parameter name.
+6. **Let the CLI choose the model version.** It picks `tripo-p1` (low-poly) when the
+   prompt has low-poly words ("low poly", "voxel") or **any `face_limit` ≤ 20000** is
+   set, and `tripo-v3.1` (high fidelity) otherwise. So `-p face_limit=15000` on its own
+   switches to P1 — add `--model tripo-v3.1` when the user wants v3.1 quality under a
+   face cap. Only pass `--model` when the user explicitly asks for one or the rule
+   picks wrong.
 
 ## Spending the user's credits
 
 Every generation costs credits from the user's account, and `credits_consumed` is
 reported on each result.
 
-- Every paid run goes through "Plan first, run after the user confirms" above; a
-  batch of several assets gets one confirmation for the whole list.
 - Run `tripo balance` first when the user asks for several assets.
 - **After the run, report the cost twice: the total and the itemised breakdown** —
   one line per task in run order: step type, task id, credits actually billed, then
-  the total, and the remaining balance when a batch was involved. Newer CLI builds
-  put this in the result JSON as `credits_breakdown` (chained runs; `credits_consumed`
-  is then the total) and print `credits consumed (total)` plus one line per task in
-  human mode. When the field is missing — a single task, or an older CLI whose
-  `chain` entries carry only `task_id` and `type` — run `tripo task get <task_id>
-  --json` for each chain entry and the top-level task: every task record has its own
-  `credits_consumed`. Quote billed numbers, not the estimate from the plan.
+  the total, and the remaining balance when a batch was involved. Quote billed
+  numbers — from the result JSON (see "Result shape"), or for a batch from
+  `tripo task get <task_id> --json` per job — not the estimate from the plan.
   `balance`, `frozen` and `credits_consumed` are decimals (e.g. `48.00`) — parse as
   float, never as int.
 - Concurrency is pooled per account and per category (exit code 9 when a pool is
   full): 10 parallel v3.x generations, 5 P-series, 10 animation, 5 texture/convert,
   10 mesh ops — and **only 1 image generation** (text-to-image, image-to-image,
   multiview). Never fan out image jobs; run them one after another.
-- For 3D printing and other untextured output, add `-p texture=false -p pbr=false`
-  — it skips texture credits entirely.
-- Do not silently re-roll a disappointing result. Show the user the preview and ask.
 
 Approximate list prices, so the cost can be quoted before a run (the authoritative
-number is `credits_consumed` on the result; `balance` and `credits_consumed` are
-decimals, not integers):
+number is `credits_consumed` on the result):
 
 | operation | credits |
 | --- | --- |
@@ -423,33 +313,13 @@ released on failure.
 
 ## Result shape
 
-```json
-{
-  "task_id": "...",
-  "type": "convert_model",
-  "status": "success",
-  "credits_consumed": 145,
-  "credits_breakdown": [
-    { "task_id": "<generation>", "type": "text_to_model", "credits_consumed": 110 },
-    { "task_id": "<texture>", "type": "texture_model", "credits_consumed": 30 },
-    { "task_id": "<convert>", "type": "convert_model", "credits_consumed": 5 }
-  ],
-  "output_dir": "tripo-out/knight-1a2b3c4d",
-  "files": ["model.fbx", "preview.png", "task.json"],
-  "model_file": ".../model.fbx",
-  "preview": ".../preview.png",
-  "source_task_id": "<generation>",
-  "chain": [
-    { "task_id": "<texture>", "type": "texture_model", "credits_consumed": 30 },
-    { "task_id": "<convert>", "type": "convert_model", "credits_consumed": 5 }
-  ]
-}
-```
+With `--json`, the last stdout line is one object with `task_id`, `type`, `status`,
+`credits_consumed`, `credits_breakdown`, `output_dir`, `files`, `model_file`,
+`preview`, `source_task_id` and `chain` (a full example is in the reference file).
 
 With `--then`, `credits_consumed` is the **total** for the run and `credits_breakdown`
-lists every task, generation first. A single task has no `credits_breakdown`. CLI
-0.4.0 and earlier omit `credits_breakdown`, `source_task_id` and the per-entry
-`credits_consumed` in `chain` — see "Spending the user's credits" for the fallback.
+lists every task (`task_id`, `type`, `credits_consumed`), generation first. A single
+task has no `credits_breakdown`; its `credits_consumed` is the billed amount.
 
 `model_file` and `preview` describe the **final** chain step. After a convert
 step the native GLB and `preview.png` live on the earlier generation task —
@@ -468,57 +338,10 @@ clicked. Instead:
 - offer the next real action: reveal it in the file manager (`open -R <path>`
   on macOS, `explorer /select,<path>` on Windows) or wire it into the project.
 
-## Other commands
+## Reference
 
-| command                          | purpose                              |
-| -------------------------------- | ------------------------------------ |
-| `tripo task get <id> --download` | fetch or re-download an earlier task (`@last`/`@name` work; `--step` adds pipeline step details; `-o` here is the final directory) |
-| `tripo task watch <id> --download` | block on a task started with `--no-wait` or from elsewhere; with `--json` progress streams as NDJSON lines and the last line is the task detail; exit 6 = failed |
-| `tripo task list [ids...]`       | batch query; no ids = recent local history refreshed from the server. `missed` lists ids the server could not find (wrong key or region) |
-| `tripo history`                  | local task history with the `@name` references: `task_id`, `type`, `name`, `status`, `output_dir` |
-| `tripo balance` / `tripo usage`  | credits remaining (`{"balance","frozen"}`; `frozen` = holds for running tasks) / recent per-task spend |
-| `tripo whoami`                   | masked key, active profile, region, balance — the quick "which account is this" check |
-| `tripo topup`                    | opens the billing page and polls until credits arrive — a human action, never run it for the user |
-| `tripo redo [@last] [--seed N]`  | same request, new seed; only for tasks this CLI created (the history holds the payload) |
-| `tripo files upload <path>`      | get a `file_token`: images PNG/JPEG/WebP/BMP/TIFF ≤20 MB, models GLB/FBX/OBJ/STL ≤150 MB; `.gltf` is not uploadable |
-| `tripo batch run manifest.yaml`  | bulk jobs, resumable — manifest below |
-| `tripo generate <endpoint> ...`  | one exact endpoint, no auto-chain: `text-to-model` `image-to-model` `multiview-to-model` `text-to-image` `image-to-image` `image-to-multiview` `edit-multiview` `image-to-splat` |
-| `tripo model\|anim\|mesh <step>` | one processing step with explicit flags (`tripo model convert @last --format FBX --fbx-preset mixamo`); input = argument > piped stdin JSON > `@last`; shared flags `--json --yes -o --no-wait --no-download --timeout --name -p` |
-| `tripo config context key=value` | per-directory defaults in `.tripo/context.json`, e.g. `default_scenario=game-mobile output_dir=./assets`; `tripo config list` shows the merged config |
-| `--profile <name>` / `tripo use <name>` | several accounts: one-shot override on any command (`TRIPO_PROFILE` env works too) / switch the active profile. An unknown profile exits 3 with the fix in the message — do not retry blindly |
-| `tripo docs --topic <topic>`     | full docs: `commands/make` `commands/generate` `commands/process` `commands/task` `commands/account` `commands/batch` `commands/view` `examples/<scenario>` `common-errors` |
-
-`tripo view` opens a local browser viewer for humans — read `preview.png` instead.
-`tripo ai` is the interactive wizard/LLM planner for humans in a terminal — use
-`tripo make --for <scenario>`, which is deterministic and needs no LLM. `tripo mcp`
-starts the CLI's own MCP server; it is not part of this plugin, do not configure it.
-
-Batch manifest (`tripo batch run assets.yaml [--concurrency 2] [--retries 1] [--fresh]`):
-
-```yaml
-concurrency: 2
-defaults: { for: game-mobile, then: "convert:fbx", out: ./assets }
-jobs:
-  - input: "a bronze sword"
-  - input: "a wooden shield"
-    name: shield                       # becomes @shield and the resume key
-  - input: cat.png
-    for: print
-    then: "convert:stl,flatten_bottom=true"
-  - inputs: [hero-front.png, hero-back.png]
-    name: hero
-    params: { texture_quality: detailed }
-```
-
-State is saved next to the manifest (`assets.yaml.state.json`) after every job, so
-re-running the same command skips the jobs that already succeeded; `--fresh` starts
-over. Failed jobs retry `--retries` times and the run exits 6 if any stays failed.
-Final stdout JSON: `{"total","success","failed","state_file","jobs":{...}}` — each job
-entry carries `status`, `attempts` and the final `task_id`; the itemised credit report
-for a batch comes from `tripo task get <task_id> --json` (and `tripo usage`). Keep `concurrency` within the
-pools listed under "Spending the user's credits" (image jobs: 1).
-
-Download URLs returned by the API expire in about five minutes — never cache one.
-Re-run `tripo task get <id> --download` instead. Task status can also be `banned`
-(content policy — change the input) or `expired` (output files gone — regenerate);
-the CLI treats both as terminal failures.
+[`references/capability.md`](references/capability.md) mirrors the official API docs.
+Read it for model versions and wire values, every generation parameter, `--then`
+steps and retarget presets, 2D steps (`tripo generate`), the full result JSON, other
+commands (`task`, `redo`, `files upload`, `model|anim|mesh`, `config`, profiles,
+`docs`), the batch manifest and download URL expiry.

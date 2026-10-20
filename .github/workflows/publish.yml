@@ -1,23 +1,47 @@
-# 发布 plugin/ 到 npm（tripo-dsh），走 npm trusted publishing（OIDC）：
-# 无需 NPM_TOKEN，npm 会自动附带 provenance 证明。
+# Validates plugin/ on every push to master, every pull request and every v* tag, and
+# publishes it to npm (tripo-dsh) when a v* tag is pushed. Publishing uses npm trusted
+# publishing (OIDC): no NPM_TOKEN is needed, and npm attaches provenance automatically.
 #
-# 前置（一次性）：包已由维护者手动首发（0.1.0）；维护者需在 npmjs.com 包页面
-# Settings → Trusted Publisher 绑定本仓库与本文件名 publish.yml，否则本 workflow 会 401。
+# One-time prerequisite: the package was first published by hand (0.1.0), and a maintainer
+# bound this repository and this workflow file name (publish.yml) under npmjs.com package
+# Settings -> Trusted Publisher; otherwise the publish job fails with 401. Keep the file name.
 #
-# 触发：推送 v<version> tag，且 <version> 必须等于 plugin/package.json 的 version。
-name: Publish to npm
+# Release: push a v<version> tag whose <version> equals plugin/package.json "version".
+name: Validate and publish
 
 on:
   push:
+    branches: [master]
     tags: ['v*']
+  pull_request:
 
 permissions:
   contents: read
-  id-token: write
 
 jobs:
-  publish:
+  validate:
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Validate plugin
+        run: node scripts/validate.mjs
+
+      - name: List package contents
+        working-directory: plugin
+        run: npm pack --dry-run
+
+  publish:
+    needs: validate
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v4
 
@@ -26,11 +50,8 @@ jobs:
           node-version: 24
           registry-url: https://registry.npmjs.org
 
-      # trusted publishing 需要 npm >= 11.5.1
+      # Trusted publishing requires npm >= 11.5.1.
       - run: npm install -g npm@^11.5.1 && npm --version
-
-      - name: Validate plugin
-        run: node scripts/validate.mjs
 
       - name: Check tag matches package.json version
         run: |

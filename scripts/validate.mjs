@@ -1,22 +1,31 @@
 #!/usr/bin/env node
 /**
- * 发布前校验：对照 DSH bundle 规范（deepseek-harness docs/user/develop/basic/publish.md）
- * 与本仓库的 skills-only 约束检查 plugin/ 目录。零依赖，node >= 18。
+ * Pre-publish validation: checks plugin/ against the DSH bundle conventions
+ * (deepseek-harness docs/user/develop/basic/publish.md) and this repository's
+ * skills-only constraints. Zero dependencies, Node.js >= 18.
  *
- * 除静态检查外，还会真实 import plugin/index.js，用假 ctx 走一遍
- * registerProvider → list() → get()，验证 provider 行为与 DSH skills
- * 注册表的候选约束（kebab-case 名、bundled rank 600、frontmatter 剥离）。
+ * Besides the static checks, it imports plugin/index.js and drives
+ * registerProvider → list() → get() with a fake ctx, verifying the provider
+ * against the DSH skills registry's candidate rules (kebab-case names, bundled
+ * rank 600, frontmatter stripped).
  */
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, extname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const PLUGIN = join(ROOT, 'plugin');
-/** DSH tool-skill 的 catalogDescriptionMaxLength 默认值：超长 description 会在模型目录里被截断 */
+/** Default catalogDescriptionMaxLength of DSH tool-skill: longer descriptions are truncated in the model catalog. */
 const CATALOG_DESCRIPTION_MAX = 500;
-/** @deepseek-ai/dsh-skill 的 BUNDLED_SKILL_RANK：打包 skill provider 的标准 rank */
+/** BUNDLED_SKILL_RANK of @deepseek-ai/dsh-skill: the standard rank for packaged skill providers. */
 const BUNDLED_SKILL_RANK = 600;
+/** Longest allowed SKILL.md; reference material belongs in the skill's references/ directory. */
+const SKILL_MAX_LINES = 500;
+/** Attribution values every tripo-cli call made by these skills must carry. */
+const ATTRIBUTION = ['TRIPO_CLIENT_APP=deepseek', 'TRIPO_DISTRIBUTION_CHANNEL=deepseek_plugin'];
+/** Han characters, CJK symbols and punctuation, and full-width forms. */
+const CJK = /[\p{Script=Han}\u3000-\u303F\uFF00-\uFFEF]/u;
+const TEXT_EXTENSIONS = new Set(['.md', '.js', '.mjs', '.json', '.yml', '.yaml']);
 
 let failures = 0;
 let checks = 0;
@@ -31,43 +40,55 @@ const fail = (msg) => {
 };
 const check = (cond, msg) => (cond ? ok(msg) : fail(msg));
 
-// ---- bundle manifest（package.json）-----------------------------------------
+/** Text files under dir, skipping node_modules and dot-directories other than .github. */
+function textFiles(dir) {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      const skip = entry.name === 'node_modules' || (entry.name.startsWith('.') && entry.name !== '.github');
+      return skip ? [] : textFiles(path);
+    }
+    return TEXT_EXTENSIONS.has(extname(entry.name)) || entry.name === '.gitignore' ? [path] : [];
+  });
+}
+
+// ---- bundle manifest (package.json) ------------------------------------------
 
 console.log('bundle manifest');
 const manifestPath = join(PLUGIN, 'package.json');
-check(existsSync(manifestPath), 'plugin/package.json 存在');
+check(existsSync(manifestPath), 'plugin/package.json exists');
 let pkg = {};
 try {
   pkg = JSON.parse(readFileSync(manifestPath, 'utf8'));
-  ok('package.json 是合法 JSON');
+  ok('package.json is valid JSON');
 } catch (err) {
-  fail(`package.json 解析失败: ${err.message}`);
+  fail(`package.json does not parse: ${err.message}`);
 }
 
-check(/^(@[a-z0-9-]+\/)?[a-z0-9][a-z0-9._-]*$/.test(pkg.name ?? ''), `name "${pkg.name}" 是合法 npm 包名`);
-check(/^\d+\.\d+\.\d+$/.test(pkg.version ?? ''), `version "${pkg.version}" 是 x.y.z`);
-check(typeof pkg.description === 'string' && pkg.description.length > 0, 'description 非空');
-check(pkg.type === 'module', 'type 是 "module"（ESM 插件入口）');
-check(pkg.main === 'index.js', 'main 指向 index.js');
-check(existsSync(join(PLUGIN, 'index.js')), 'index.js 存在');
-check((pkg.keywords ?? []).includes('dsh-plugin'), 'keywords 含 "dsh-plugin"（生态发现约定）');
-check(pkg.license === 'MIT', 'license 是 MIT');
+check(/^(@[a-z0-9-]+\/)?[a-z0-9][a-z0-9._-]*$/.test(pkg.name ?? ''), `name "${pkg.name}" is a valid npm package name`);
+check(/^\d+\.\d+\.\d+$/.test(pkg.version ?? ''), `version "${pkg.version}" is x.y.z`);
+check(typeof pkg.description === 'string' && pkg.description.length > 0, 'description is not empty');
+check(pkg.type === 'module', 'type is "module" (ESM plugin entry)');
+check(pkg.main === 'index.js', 'main points to index.js');
+check(existsSync(join(PLUGIN, 'index.js')), 'index.js exists');
+check((pkg.keywords ?? []).includes('dsh-plugin'), 'keywords include "dsh-plugin" (ecosystem discovery convention)');
+check(pkg.license === 'MIT', 'license is MIT');
 if ((pkg.name ?? '').startsWith('@')) {
-  check(pkg.publishConfig?.access === 'public', 'scoped 包声明 publishConfig.access = public（否则 npm publish 默认私有并失败）');
+  check(pkg.publishConfig?.access === 'public', 'scoped package declares publishConfig.access = public (npm publish otherwise defaults to private and fails)');
 }
 
 const patchRel = pkg.dsh?.bundle?.patch;
-check(typeof patchRel === 'string' && patchRel.length > 0, 'dsh.bundle.patch 已声明（缺失则只作为普通依赖安装，不激活层）');
+check(typeof patchRel === 'string' && patchRel.length > 0, 'dsh.bundle.patch is declared (without it the package installs as a plain dependency and activates no layer)');
 const patchPath = patchRel ? resolve(PLUGIN, patchRel) : null;
-check(patchPath !== null && existsSync(patchPath), `patch 文件 ${patchRel} 存在`);
+check(patchPath !== null && existsSync(patchPath), `patch file ${patchRel} exists`);
 
 for (const entry of ['index.js', 'cordis.patch.yml', 'skills']) {
-  check((pkg.files ?? []).includes(entry), `files 含 "${entry}"（npm 发包完整性）`);
+  check((pkg.files ?? []).includes(entry), `files includes "${entry}" (complete npm package)`);
 }
 
-// 零依赖 + 无 scripts：git/tarball/目录安装都不需要构建脚本许可（pnpm ≥10 会拦截）
+// Zero dependencies and no scripts: git, tarball and directory installs need no build-script allowance (pnpm >= 10 blocks them).
 for (const field of ['dependencies', 'devDependencies', 'peerDependencies', 'scripts']) {
-  check(!(field in pkg) || Object.keys(pkg[field]).length === 0, `不含 "${field}"（零依赖、无安装期脚本约束）`);
+  check(!(field in pkg) || Object.keys(pkg[field]).length === 0, `no "${field}" (zero dependencies, no install-time scripts)`);
 }
 
 // ---- cordis.patch.yml --------------------------------------------------------
@@ -75,18 +96,18 @@ for (const field of ['dependencies', 'devDependencies', 'peerDependencies', 'scr
 console.log('cordis.patch.yml');
 if (patchPath && existsSync(patchPath)) {
   const patchText = readFileSync(patchPath, 'utf8');
-  check(/^\s*-\s*insert:/m.test(patchText), 'patch 含 insert 段');
-  check(new RegExp(`name:\\s*['"]?${pkg.name}['"]?\\s*$`, 'm').test(patchText), `insert 行 name 引用包名 "${pkg.name}"（Node 解析安装后的代码）`);
-  check(/id:\s*\S+/m.test(patchText), 'insert 行有 id（用户可按 id 覆盖或禁用）');
+  check(/^\s*-\s*insert:/m.test(patchText), 'patch has an insert section');
+  check(new RegExp(`name:\\s*['"]?${pkg.name}['"]?\\s*$`, 'm').test(patchText), `insert row name references the package name "${pkg.name}" (Node resolves the installed code)`);
+  check(/id:\s*\S+/m.test(patchText), 'insert row has an id (users can override or disable it by id)');
 }
 
-// ---- 插件模块行为 --------------------------------------------------------------
+// ---- plugin module behavior --------------------------------------------------
 
 console.log('plugin module');
 const mod = await import(pathToFileURL(join(PLUGIN, 'index.js')).href);
-check(typeof mod.name === 'string' && mod.name.length > 0, `导出 name "${mod.name}"`);
-check(Array.isArray(mod.inject) && mod.inject.includes('skills'), 'inject 声明 skills 服务');
-check(typeof mod.apply === 'function', '导出 apply 函数');
+check(typeof mod.name === 'string' && mod.name.length > 0, `exports name "${mod.name}"`);
+check(Array.isArray(mod.inject) && mod.inject.includes('skills'), 'inject declares the skills service');
+check(typeof mod.apply === 'function', 'exports an apply function');
 
 const registered = [];
 const fakeCtx = {
@@ -98,9 +119,9 @@ const fakeCtx = {
   },
 };
 mod.apply(fakeCtx);
-check(registered.length === 1, 'apply 恰好注册一个 skill provider');
+check(registered.length === 1, 'apply registers exactly one skill provider');
 const provider = registered[0] ?? {};
-check(typeof provider.name === 'string' && provider.name.length > 0, `provider 名 "${provider.name}"`);
+check(typeof provider.name === 'string' && provider.name.length > 0, `provider name "${provider.name}"`);
 
 const skillDirs = readdirSync(join(PLUGIN, 'skills')).filter((entry) =>
   statSync(join(PLUGIN, 'skills', entry)).isDirectory(),
@@ -108,75 +129,113 @@ const skillDirs = readdirSync(join(PLUGIN, 'skills')).filter((entry) =>
 let candidates = [];
 try {
   candidates = await provider.list({});
-  ok(`list() 返回 ${candidates.length} 个候选`);
+  ok(`list() returns ${candidates.length} candidates`);
 } catch (err) {
-  fail(`list() 抛错: ${err.message}`);
+  fail(`list() throws: ${err.message}`);
 }
-check(candidates.length === skillDirs.length, `候选数量与 skills/ 目录数一致（${skillDirs.length}）`);
+check(candidates.length === skillDirs.length, `candidate count matches the skills/ directories (${skillDirs.length})`);
 
 for (const candidate of candidates) {
   const n = candidate.name;
-  check(/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(n ?? ''), `候选 "${n}" 是 kebab-case（DSH skill 名硬约束）`);
-  check(skillDirs.includes(n), `候选 "${n}" 对应 skills/${n}/ 目录`);
+  check(/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(n ?? ''), `candidate "${n}" is kebab-case (DSH skill name rule)`);
+  check(skillDirs.includes(n), `candidate "${n}" maps to skills/${n}/`);
   const normalized = (candidate.description ?? '').replaceAll(/\s+/g, ' ').trim();
-  check(normalized.length > 0, `候选 "${n}" description 非空`);
+  check(normalized.length > 0, `candidate "${n}" description is not empty`);
   check(
     normalized.length <= CATALOG_DESCRIPTION_MAX,
-    `候选 "${n}" description ${normalized.length} 字符 ≤ ${CATALOG_DESCRIPTION_MAX}（超出会在模型目录里被截断）`,
+    `candidate "${n}" description is ${normalized.length} characters, ≤ ${CATALOG_DESCRIPTION_MAX} (longer text is truncated in the model catalog)`,
   );
-  check(candidate.rank === BUNDLED_SKILL_RANK, `候选 "${n}" rank 为 ${BUNDLED_SKILL_RANK}（BUNDLED_SKILL_RANK）`);
-  check(candidate.source === 'bundled', `候选 "${n}" source 为 bundled`);
+  check(candidate.rank === BUNDLED_SKILL_RANK, `candidate "${n}" rank is ${BUNDLED_SKILL_RANK} (BUNDLED_SKILL_RANK)`);
+  check(candidate.source === 'bundled', `candidate "${n}" source is bundled`);
   check(
     candidate.invocation?.modelInvocable === true && candidate.invocation?.userInvocable === true,
-    `候选 "${n}" 模型与用户均可调用`,
+    `candidate "${n}" is invocable by both model and user`,
   );
   check(
     candidate.resourceBase?.kind === 'directory' && existsSync(candidate.resourceBase.path),
-    `候选 "${n}" resourceBase 指向存在的目录`,
+    `candidate "${n}" resourceBase points to an existing directory`,
   );
 
   let definition;
   try {
     definition = await provider.get(candidate, {});
   } catch (err) {
-    fail(`get("${n}") 抛错: ${err.message}`);
+    fail(`get("${n}") throws: ${err.message}`);
     continue;
   }
-  check(definition?.name === n, `get("${n}") 返回同名定义`);
-  check(typeof definition?.content === 'string' && definition.content.trim().length > 0, `get("${n}") content 非空`);
-  check(!definition?.content.startsWith('---'), `get("${n}") content 已剥离 frontmatter`);
+  check(definition?.name === n, `get("${n}") returns a definition with the same name`);
+  check(typeof definition?.content === 'string' && definition.content.trim().length > 0, `get("${n}") content is not empty`);
+  check(!definition?.content.startsWith('---'), `get("${n}") content has its frontmatter stripped`);
 }
 
-// ---- skills 内容 ---------------------------------------------------------------
+// ---- skills content ----------------------------------------------------------
 
 console.log('skills');
 check(
   skillDirs.length === 2 && skillDirs.includes('tripo-3d') && skillDirs.includes('tripo-game-asset'),
-  `skills/ 恰好包含 tripo-3d 与 tripo-game-asset（实际：${skillDirs.join(', ')}）`,
+  `skills/ contains exactly tripo-3d and tripo-game-asset (found: ${skillDirs.join(', ')})`,
 );
 
 for (const dir of skillDirs) {
   const rel = `skills/${dir}/SKILL.md`;
   const file = join(PLUGIN, rel);
-  check(existsSync(file), `${rel} 存在`);
+  check(existsSync(file), `${rel} exists`);
   if (!existsSync(file)) continue;
   const text = readFileSync(file, 'utf8');
   const body = text.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, '');
-  check(!/([A-Z]:\\|\/Users\/|\/home\/)/.test(body), `${rel} 正文不含本机文件路径`);
-  check(!/\bKimi\b|\bCodex\b/.test(body), `${rel} 正文无 Kimi/Codex 表面残留`);
-  check(/cannot execute\s+shell/.test(body), `${rel} 保留 shell 前置条款`);
+  const frontmatter = (text.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n/)?.[1] ?? '').split(/\r?\n/);
+  const descIndex = frontmatter.findIndex((line) => line.startsWith('description:'));
+  const description = descIndex >= 0 ? frontmatter[descIndex].slice('description:'.length).trim() : '';
+  check(
+    description.length > 0 && !/^[>|]/.test(description) && !/^\s/.test(frontmatter[descIndex + 1] ?? ''),
+    `${rel} description is a single-line plain value (index.js reads one line only)`,
+  );
+  check(/cannot execute\s+shell/.test(body), `${rel} keeps the shell-unavailable clause`);
+  check(ATTRIBUTION.every((value) => body.includes(value)), `${rel} sets the DeepSeek attribution values (${ATTRIBUTION.join(', ')})`);
   const lines = text.split('\n').length;
-  if (lines > 500) console.warn(`WARN  ${rel} 有 ${lines} 行，建议 SKILL.md 保持在 500 行以内`);
+  check(lines <= SKILL_MAX_LINES, `${rel} has ${lines} lines, ≤ ${SKILL_MAX_LINES} (move reference material to references/)`);
+}
+
+for (const file of textFiles(join(PLUGIN, 'skills')).filter((path) => path.endsWith('.md'))) {
+  const rel = relative(PLUGIN, file).split(sep).join('/');
+  const body = readFileSync(file, 'utf8').replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, '');
+  check(!/([A-Z]:\\|\/Users\/|\/home\/)/.test(body), `${rel} contains no local file paths`);
+  check(!/\b(Kimi|Codex|GLM|ZCode|WorkBuddy)\b/.test(body), `${rel} has no leftover names of other agent products`);
+  check(
+    !/\b(codex|kimi|zcode|glm|workbuddy)_plugin\b|TRIPO_CLIENT_APP=(?!['"]?deepseek\b)|TRIPO_DISTRIBUTION_CHANNEL=(?!['"]?deepseek_plugin\b)/.test(body),
+    `${rel} carries no other platform's attribution values`,
+  );
+  const broken = [...body.matchAll(/\]\(([^)\s]+)\)/g)]
+    .map((match) => match[1])
+    .filter((target) => !/^(https?:|mailto:|#)/.test(target))
+    .filter((target) => {
+      const path = resolve(dirname(file), target.split('#')[0]);
+      return !path.startsWith(PLUGIN + sep) || !existsSync(path);
+    });
+  check(broken.length === 0, `${rel} relative links resolve inside plugin/${broken.length ? ` (broken: ${broken.join(', ')})` : ''}`);
 }
 
 const tripoSkill = readFileSync(join(PLUGIN, 'skills/tripo-3d/SKILL.md'), 'utf8');
 check(
   tripoSkill.includes('developers.tripo3d.com') && tripoSkill.includes('developers.tripo3d.ai'),
-  'tripo-3d 覆盖双区域（cn developers.tripo3d.com + ov developers.tripo3d.ai）',
+  'tripo-3d covers both regions (cn developers.tripo3d.com + ov developers.tripo3d.ai)',
 );
-check(/npmmirror/.test(tripoSkill), 'tripo-3d 保留大陆网络 npmmirror 提示');
+check(/npmmirror/.test(tripoSkill), 'tripo-3d keeps the npmmirror hint for China-mainland networks');
 
-// ---- summary ----------------------------------------------------------------
+// ---- repository text ---------------------------------------------------------
 
-console.log(failures === 0 ? `\n${checks}/${checks} 项检查全部通过` : `\n${checks - failures}/${checks} 项通过，${failures} 项失败`);
+console.log('repository');
+const cjkHits = textFiles(ROOT).flatMap((file) =>
+  readFileSync(file, 'utf8')
+    .split('\n')
+    .flatMap((line, index) => (CJK.test(line) ? [`${relative(ROOT, file)}:${index + 1}`] : [])),
+);
+check(
+  cjkHits.length === 0,
+  `no Chinese characters or full-width punctuation in the repository${cjkHits.length ? ` (found: ${cjkHits.slice(0, 10).join(', ')}${cjkHits.length > 10 ? ', ...' : ''})` : ''}`,
+);
+
+// ---- summary -----------------------------------------------------------------
+
+console.log(failures === 0 ? `\nall ${checks} checks passed` : `\n${checks - failures}/${checks} checks passed, ${failures} failed`);
 process.exit(failures === 0 ? 0 : 1);
