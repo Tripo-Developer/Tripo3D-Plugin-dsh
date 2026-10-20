@@ -63,7 +63,7 @@ Only `plugin/` is published; its `files` allowlist keeps everything else out of 
 dsh plugin --profile web add tripo-dsh
 
 # From GitHub (the package lives in plugin/; pnpm path: syntax; no build script, so no build allowance)
-dsh plugin --profile web add "github:VAST-AI-Research/Tripo3D-Plugin-dsh#path:/plugin"
+dsh plugin --profile web add "github:Tripo-Developer/Tripo3D-Plugin-dsh#path:/plugin"
 
 # From a local checkout (development; pnpm link, so skill edits apply immediately)
 dsh plugin --profile web add /path/to/Tripo3D-Plugin-dsh/plugin
@@ -100,7 +100,7 @@ dsh web                                  # type / in the input box: tripo-3d and
 
 The package [`tripo-dsh`](https://www.npmjs.com/package/tripo-dsh) is published by GitHub Actions
 through npm trusted publishing (OIDC, no token). One-time prerequisite: on npmjs.com, open the
-package's Settings -> Trusted Publisher and bind Organization `VAST-AI-Research`, Repository
+package's Settings -> Trusted Publisher and bind Organization `Tripo-Developer`, Repository
 `Tripo3D-Plugin-dsh`, Workflow `publish.yml`, Environment empty. Keep at least two package owners
 (`npm owner add <user> tripo-dsh`).
 

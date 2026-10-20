@@ -18,8 +18,15 @@ dsh web
 Or install straight from the GitHub repository (the package lives in `plugin/`):
 
 ```bash
-dsh plugin --profile web add "github:VAST-AI-Research/Tripo3D-Plugin-dsh#path:/plugin"
+dsh plugin --profile web add "github:Tripo-Developer/Tripo3D-Plugin-dsh#path:/plugin"
 ```
+
+For a while after a new release, the pnpm bundled with dsh keeps resolving the previous
+version, because it holds back freshly published packages. To get a new release right
+away, name the version: `dsh plugin --profile web add tripo-dsh@<version>`.
+
+pnpm may also print `Agent skills awaiting approval: tripo-dsh`. dsh loads the skills
+through the plugin itself, so no approval is needed and the notice can be ignored.
 
 ## Requirements
 
@@ -81,7 +88,7 @@ dsh plugin --profile web remove tripo-dsh
 ## Source & feedback
 
 Source code and issue tracker:
-[VAST-AI-Research/Tripo3D-Plugin-dsh](https://github.com/VAST-AI-Research/Tripo3D-Plugin-dsh)
+[Tripo-Developer/Tripo3D-Plugin-dsh](https://github.com/Tripo-Developer/Tripo3D-Plugin-dsh)
 (the package lives in the `plugin/` directory).
 
 ## License
