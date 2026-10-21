@@ -1,6 +1,6 @@
 {
   "name": "tripo-dsh",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Tripo 3D skills for DeepSeek Harness — generate engine-ready 3D assets from a text prompt or a reference image via tripo-cli, with texturing, rigging, retopology and format conversion in one pass. Works with both Tripo regions (China mainland and international).",
   "keywords": [
     "dsh-plugin",

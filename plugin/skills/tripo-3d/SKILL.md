@@ -23,13 +23,14 @@ blocked instead of describing the commands as if they had run.
 
 ## Command form
 
-Requires `tripo-cli` 0.7.0 or later. In this skill, in `tripo-game-asset` and in
+Requires `tripo-cli` 0.7.3 or later. In this skill, in `tripo-game-asset` and in
 [`references/capability.md`](references/capability.md), `tripo <args>` always means:
 
 - POSIX: `TRIPO_CLIENT_APP=deepseek TRIPO_DISTRIBUTION_CHANNEL=deepseek_plugin npx tripo-cli@latest <args>`
 - PowerShell: `$env:TRIPO_CLIENT_APP='deepseek'; $env:TRIPO_DISTRIBUTION_CHANNEL='deepseek_plugin'; npx tripo-cli@latest <args>`
 
-Set both variables in the same shell call as the command: every call starts a fresh
+Prefix every command in a pipeline with both variables, including commands from
+references. Set both variables in the same shell call as the command: every call starts a fresh
 shell, so an earlier `export` is lost. The user does not have to set them, and they
 are never written to an account profile. The two values only name this plugin and
 carry no user data; the CLI's usage analytics read them (for international-site calls
@@ -43,7 +44,7 @@ first. On China-mainland networks, when the download stalls, switch to the npmmi
 registry and retry: `npm config set registry https://registry.npmmirror.com`.
 Installing globally (`npm install -g tripo-cli`) makes repeated calls faster — ask
 before doing it. A global `tripo` may replace `npx tripo-cli@latest` only when
-`tripo --version` reports 0.7.0 or later.
+`tripo --version` reports 0.7.3 or later.
 
 ## Before the first generation
 

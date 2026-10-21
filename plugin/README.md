@@ -32,7 +32,7 @@ through the plugin itself, so no approval is needed and the notice can be ignore
 
 - A dsh session whose agent can run shell commands with network access.
 - Node.js on the host. The skills run [`tripo-cli`](https://www.npmjs.com/package/tripo-cli)
-  0.7.0 or later through `npx`, so nothing else needs to be installed.
+  0.7.3 or later through `npx`, so nothing else needs to be installed.
 - A Tripo account on either site. You can sign up during the first login, and new
   accounts get free credits.
 
