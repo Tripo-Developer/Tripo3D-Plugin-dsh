@@ -261,7 +261,9 @@ it); check that what ran matches what you showed, and say so if it differs.
    `4` insufficient credits — tell the user to run `tripo topup` in their own terminal
    (it opens the billing page and waits for the credits to land); do not run it
    yourself · `5` content policy · `6` task failed (credits auto-refunded,
-   `tripo redo` often succeeds) · `7` network · `8` not found — a task id only
+   `tripo redo` often succeeds) · `7` network — when the error JSON carries a
+   `task_id`, the task succeeded and is billed but its download failed: run
+   `tripo task get <task_id> --download`, never re-run `tripo make` · `8` not found — a task id only
    resolves under the key that created it, so when an older task 404s, fall back to
    passing the local model file · `9` rate limit (retry with backoff).
 4. **Judge the result before moving on.** The result JSON gives `model_file` and

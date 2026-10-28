@@ -15,3 +15,7 @@
 - Keep the DSH SkillProvider/ESM bundle shape, English skill catalog descriptions,
   per-command DeepSeek attribution and one shared package for cn and ov regions.
 - Update repository/package README and semantic regressions.
+- Sync CLI 0.8.0 output contracts: exit 7 with a `task_id` means the task succeeded
+  and is billed but its download failed (`tripo task get <task_id> --download`, never
+  re-run `tripo make`); `task watch --json` prints one final JSON line with progress
+  on stderr; headless process commands no longer fall back to `@last`.

@@ -188,7 +188,7 @@ The last stdout line of a chained `tripo make ... --json` run:
 | command                          | purpose                              |
 | -------------------------------- | ------------------------------------ |
 | `tripo task get <id> --download` | fetch or re-download an earlier task (`@last`/`@name` work; `--step` adds pipeline step details; `-o` here is the final directory) |
-| `tripo task watch <id> --download` | block on a task started with `--no-wait` or from elsewhere; with `--json` progress streams as NDJSON lines and the last line is the task detail; exit 6 = failed |
+| `tripo task watch <id> --download` | block on a task started with `--no-wait` or from elsewhere; progress goes to stderr and stdout carries only the final task detail as one JSON line; exit 6 = failed |
 | `tripo task list [ids...]`       | batch query; no ids = recent local history refreshed from the server. `missed` lists ids the server could not find (wrong key or region) |
 | `tripo history`                  | local task history with the `@name` references: `task_id`, `type`, `name`, `status`, `output_dir` |
 | `tripo balance` / `tripo usage`  | credits remaining (`{"balance","frozen"}`; `frozen` = holds for running tasks) / recent per-task spend |
@@ -198,7 +198,7 @@ The last stdout line of a chained `tripo make ... --json` run:
 | `tripo files upload <path>`      | get a `file_token`: images PNG/JPEG/WebP/BMP/TIFF ≤20 MB, models GLB/FBX/OBJ/STL ≤150 MB; `.gltf` is not uploadable |
 | `tripo batch run manifest.yaml`  | bulk jobs, resumable — manifest below |
 | `tripo generate <endpoint> ...`  | one exact endpoint, no auto-chain: `text-to-model` `image-to-model` `multiview-to-model` `text-to-image` `image-to-image` `image-to-multiview` `edit-multiview` `image-to-splat` |
-| `tripo model\|anim\|mesh <step>` | one processing step with explicit flags (`tripo model convert @last --format FBX --fbx-preset mixamo`); input = argument > piped stdin JSON > `@last`; shared flags `--json --yes -o --no-wait --no-download --timeout --name -p` |
+| `tripo model\|anim\|mesh <step>` | one processing step with explicit flags (`tripo model convert @last --format FBX --fbx-preset mixamo`); input = argument > piped stdin JSON > `@last`, but `@last` only with a terminal on stdin — in a non-interactive shell pass the input explicitly, or it exits 2 and submits nothing; shared flags `--json --yes -o --no-wait --no-download --timeout --name -p` |
 | `tripo config context key=value` | per-directory defaults in `.tripo/context.json`, e.g. `default_scenario=game-mobile output_dir=./assets`; `tripo config list` shows the merged config |
 | `--profile <name>` / `tripo use <name>` | several accounts: one-shot override on any command (`TRIPO_PROFILE` env works too) / switch the active profile. An unknown profile exits 3 with the fix in the message — do not retry blindly |
 | `tripo docs --topic <topic>`     | full docs: `commands/make` `commands/generate` `commands/process` `commands/task` `commands/account` `commands/batch` `commands/view` `examples/<scenario>` `common-errors` |
