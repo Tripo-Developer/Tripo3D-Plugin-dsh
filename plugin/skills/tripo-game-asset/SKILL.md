@@ -9,7 +9,8 @@ Recipes on top of the `tripo-3d` skill. Read that skill first for the shell
 requirement, the command form, auth, the blocking behaviour of `tripo make`, exit
 codes, credit rules and the parameter rules that fail quietly. Every `tripo ...`
 command here uses that skill's command form:
-`TRIPO_CLIENT_APP=deepseek TRIPO_DISTRIBUTION_CHANNEL=deepseek_plugin npx tripo-cli@latest <args>`
+`TRIPO_CLIENT_APP=deepseek TRIPO_DISTRIBUTION_CHANNEL=deepseek_plugin tripo <args>`
+after the main skill's >=0.8.0 version check
 on POSIX, or the PowerShell equivalent from that skill. Repeat both tags on each
 command in a pipeline; a prefix before the first command does not tag the rest. Every recipe here is a shell
 command: if this environment cannot execute shell commands, stop and tell the user
@@ -23,39 +24,48 @@ structure. Always pass `-o` pointing at wherever the project keeps its art. `-o`
 the parent directory (see `tripo-3d`), so move the files to their final location
 afterwards if the user named a specific path.
 
-## Pick a budget first
+## Choose topology and geometry for the intended use
+
+Consider P series first for real-time, editable game assets on every platform.
+Use P2 for triangle or native quad topology; choose H when the task needs dense
+source geometry or an H-only feature. Visual quality, PBR and detailed textures do
+not imply H. Pass the chosen model explicitly, including with presets: installed
+CLI versions may still use older defaults. Disclose P2's higher credit cost
+in the plan; neither mobile nor a small face budget automatically means P1.
 
 | target                        | preset              | what it does                                          |
 | ----------------------------- | ------------------- | ----------------------------------------------------- |
-| mobile, WebGL, many instances | `--for game-mobile` | P1 low-poly model, face_limit 15000, 2K textures, FBX |
-| PC / console hero asset       | `--for game-pc`     | v3.1, detailed PBR, FBX                               |
-| animated character            | `--for anim`        | rig-check, then rig (v2.5, tripo spec), then retarget idle + walk |
+| mobile, WebGL, many instances | `--for game-mobile --model tripo-p2` | P2, face_limit 15000, 2K textures, FBX |
+| PC / console game asset       | `--for game-pc --model tripo-p2`     | P2, detailed PBR, FBX |
+| animated character            | `--for anim --model tripo-p2`        | P2, rig-check, then rig (v3.0, tripo spec), then retarget idle + walk |
 
 Override the face budget when the project has a stricter one:
 
 ```bash
-tripo make "a health potion bottle" --for game-mobile \
+tripo make "a health potion bottle" --for game-mobile --model tripo-p2 \
   -p face_limit=3000 --then convert:format=FBX,texture_size=1024 \
   -o ./Assets/Art/Props --json --yes
 ```
 
-Which generation model fits the budget:
+Check the selected model's capabilities against the project budget:
 
-- **P1** (`tripo-p1`, 50–20000 faces) — the default low-poly choice; clean, game-style
-  topology out of the box, picked automatically for budgets up to 20000 faces.
-- **P2** (`--model tripo-p2`, 48–50000 tri / 48–25000 quad; **Preview**) — P1 with
-  quads and a bigger budget: `-p quad=true` for subdivision-friendly or
-  hand-edit-friendly low-poly. Costs 100+ credits per generation versus 30–50 for P1;
-  never auto-selected.
-- **v3.1 + `smart_low_poly`** (`--model tripo-v3.1 -p smart_low_poly=true -p face_limit=<500–20000>`)
-  — high-fidelity detail with hand-modelled-style low-poly topology, when P1's look is
-  too simple. Keep the explicit `--model`: a low `face_limit` alone selects P1.
-- **v3.1 + `decimate`** — hero-quality source, then LODs (next section).
+- **P2** (`--model tripo-p2`, 48–50000 tri / 48–25000 quad) — the first
+  consideration for real-time, editable assets, including visually detailed PC and
+  console assets. Add `-p quad=true` when the editing workflow needs native quads.
+  The request carries `model=P2-20260801` (the API rejects the alias itself).
+  Generation costs 100 bare / 110 textured credits before optional extras.
+- **P1** (`--model tripo-p1`, 50–20000 faces) — an explicit alternative when its
+  capabilities, speed or lower cost suit the request (30–50 generation credits).
+  A small budget or low-poly style alone does not force this version; no quads.
+- **H v3.1** (`--model tripo-v3.1`) — select for dense source geometry, budgets
+  beyond P2's limits, or `smart_low_poly`, `generate_parts` and `geometry_quality`,
+  which P1/P2 do not support. `smart_low_poly` uses 500–20000 tri / 500–10000 quad;
+  a dense source can instead be reduced into LODs (next section).
 
 ## Props
 
 ```bash
-tripo make "an ornate treasure chest, fantasy style" --for game-pc \
+tripo make "an ornate treasure chest, fantasy style" --for game-pc --model tripo-p2 \
   -o ./assets/models --json --yes
 ```
 
@@ -66,7 +76,7 @@ genuinely large sets use `tripo batch run manifest.yaml`, which is resumable.
 ## LOD chain from one source
 
 ```bash
-tripo make "a stone golem" --for game-pc --then decimate:5000 --json --yes
+tripo make "a stone golem" --for game-pc --model tripo-v3.1 --then decimate:5000 --json --yes
 tripo make @last --then decimate:1500,convert:fbx --json --yes
 ```
 
@@ -86,10 +96,21 @@ to `decimate`.
 has no bake. Alternatively set `face_limit` on the `convert` step, which decimates during
 export at the complex-convert price.
 
+`decimate:model=v3.0` is the newest retopology (35 credits, 40 with `quad=true`, against
+30 for the default v2.0) and the only one that takes `smart_uv=true`, which unwraps UVs
+in the same task at no extra cost — choose it explicitly with
+`--then decimate:face_limit=5000,model=v3.0,smart_uv=true`. To re-unwrap a mesh without reducing it, use the `uv` step (20 credits): it
+remaps the existing textures, rig and animation onto the new layout, and its input must
+stay ≤ 80 000 equivalent triangles, so reduce a denser source first —
+`--then decimate:20000,uv`.
+
+Do not add a separate UV task for the same unwrap request: retopology smart_uv
+returns no atlas image; independent `uv` is a separately billed operation.
+
 ## Modular and destructible assets
 
 ```bash
-tripo make "a wooden cart with detachable wheels" -p generate_parts=true \
+tripo make "a wooden cart with detachable wheels" --model tripo-v3.1 -p generate_parts=true \
   -p texture=false -p pbr=false --json --yes                    # parts at generation time
 tripo make @last --then texture --json --yes                    # texture the parts afterwards
 tripo make hero.glb --then segment:v2.0-20260430,complete --json --yes   # split an existing mesh, then close the cut faces
@@ -106,7 +127,7 @@ tripo make hero.glb --then segment:v2.0-20260430,complete --json --yes   # split
 ## Characters with animation
 
 ```bash
-tripo make "a knight in full armor, T-pose, standing straight" --for anim --json --yes
+tripo make "a knight in full armor, T-pose, standing straight" --for anim --model tripo-p2 --json --yes
 ```
 
 `--for anim` runs `rig-check` first, which gates the chain: if the mesh is not
@@ -115,7 +136,7 @@ riggable it stops before spending rigging credits.
 Explicit control over the rig and clips:
 
 ```bash
-tripo make "a robot soldier, T-pose" --json --yes \
+tripo make "a robot soldier, T-pose" --model tripo-p2 --json --yes \
   | tripo anim check --json \
   | tripo anim rig --spec mixamo --out-format fbx --json \
   | tripo anim retarget --animation preset:idle preset:walk preset:run --json
@@ -133,12 +154,13 @@ tripo make "a robot soldier, T-pose" --json --yes \
 - `--spec mixamo` produces a Unity Humanoid / Mixamo-compatible skeleton; when the
   final format is FBX add `fbx_preset=mixamo` on the convert step so bone naming and
   axes match.
-- Clips available with the default v2.5 rig, for every body type: `preset:idle`
-  `walk` `run` `jump` `fall` `turn` `climb` `dive` `slash` `shoot` `hurt`, plus
+- Clips available with the default v3.0 rig, for biped: `preset:idle`
+  `walk` `run` `jump` `fall` `turn` `climb` `dive` `slash` `shoot` `hurt`. Creatures use
   `preset:quadruped:walk`, `preset:hexapod:walk`, `preset:octopod:walk`,
   `preset:serpentine:march`, `preset:aquatic:march`. The older `rig:model=v1.0-20240301`
   is biped-only but has 90+ `preset:biped:*` clips (dances, emotes, sports, combat) —
-  pick it when the game needs those.
+  pick it explicitly when the game needs those. Avian and others have no presets.
+  Specs are biped-only; `actorcore`, `unity`, `unreal`, `vrm` require v3.0.
 - `--animate-in-place` for locomotion clips driven by game code rather than root motion.
 - Retarget is billed per animation (10 credits each) and accepts at most five per task.
   `--then retarget:` carries a single clip; use the piped `tripo anim retarget

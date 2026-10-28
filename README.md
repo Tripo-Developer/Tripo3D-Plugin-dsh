@@ -58,6 +58,13 @@ Only `plugin/` is published; its `files` allowlist keeps everything else out of 
 
 ## Install and verify
 
+Version **0.1.6**. CLI >=0.8.0 is required: run `tripo --version`; if it is missing
+or older, stop and, with the user's consent, install `npm install -g tripo-cli@0.8`,
+then check the version again.
+The shared package retains both `cn` and `ov` accounts; ask for the correct region.
+P2 costs more credits than H/P1, P1 remains selectable, fees may be **not estimated**,
+and a plan is not a server-enforced authorization gate.
+
 ```bash
 # From npm
 dsh plugin --profile web add tripo-dsh
@@ -89,7 +96,8 @@ dsh web                                  # type / in the input box: tripo-3d and
 
 1. Edit files under `plugin/`. Agent behavior lives in the skills: change `SKILL.md` or
    `references/capability.md`, not this README.
-2. Run `node scripts/validate.mjs` (Node.js 18 or later, nothing to install). CI runs the same
+2. Run `node scripts/validate.mjs` and `node --test scripts/semantic.test.mjs`
+   (Node.js 20.11+ for the semantic suite, nothing to install). CI runs the validation
    script on every push to `master`, every pull request and every tag.
 3. Try the change in dsh from a local checkout. Skill edits apply immediately; restart dsh after
    changing `cordis.patch.yml` or `package.json`.
@@ -97,6 +105,9 @@ dsh web                                  # type / in the input box: tripo-3d and
    `version` in `plugin/package.json` in the same change.
 
 ## Release
+
+Do not tag, push or publish without separate user authorization. See `CHANGELOG.md`
+for version changes.
 
 The package [`tripo-dsh`](https://www.npmjs.com/package/tripo-dsh) is published by GitHub Actions
 through npm trusted publishing (OIDC, no token). One-time prerequisite: on npmjs.com, open the
@@ -121,7 +132,8 @@ A dsh plugin can register tools, connect MCP servers or add hooks. This plugin r
 only, because the work splits cleanly:
 
 - `tripo-cli` owns the API contract: auth, region detection, task polling, downloads, exit codes
-  and the `--json` stdout line. It runs through `npx`, so nothing is preinstalled.
+  and the `--json` stdout line. The skills require a verified >=0.8.0 CLI
+  installation; they must not bootstrap an older registry release.
 - The skills own the operating manual: when to use Tripo, what to run first, how to branch on
   results, how to spend the user's credits and how to present the result.
 - dsh puts the skills in the model-visible catalog and provides the shell tool and sandbox.
@@ -221,8 +233,8 @@ Most DeepSeek users are in mainland China, so both regions are a hard requiremen
 which site the account is on before starting a device login, because a device flow on the wrong
 console sends the user to a site without their account. A wrong region is recoverable: the CLI
 probes both regions when it verifies a key, and `tripo doctor` reports a key-versus-region
-mismatch with the fix. When `npx` stalls on a China-mainland network, the skill switches to the
-npmmirror registry.
+mismatch with the fix. Candidate setup never silently changes the npm registry
+or falls back to a published CLI with old semantics.
 
 Both skills set `TRIPO_CLIENT_APP=deepseek` and `TRIPO_DISTRIBUTION_CHANNEL=deepseek_plugin` on
 every CLI call. The values carry no user data; the CLI's usage analytics read them, and

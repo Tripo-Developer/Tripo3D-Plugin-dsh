@@ -31,8 +31,9 @@ through the plugin itself, so no approval is needed and the notice can be ignore
 ## Requirements
 
 - A dsh session whose agent can run shell commands with network access.
-- Node.js on the host. The skills run [`tripo-cli`](https://www.npmjs.com/package/tripo-cli)
-  0.7.3 or later through `npx`, so nothing else needs to be installed.
+- Node.js LTS and [`tripo-cli`](https://www.npmjs.com/package/tripo-cli) >=0.8.0.
+  The agent checks `tripo --version` and, with your consent, runs
+  `npm install -g tripo-cli@0.8` when it is missing or older.
 - A Tripo account on either site. You can sign up during the first login, and new
   accounts get free credits.
 
@@ -59,7 +60,9 @@ Try prompts like:
 
 Every generation spends credits from your Tripo account. Before any paid step the
 agent shows a plan — the steps, the files it will write and the estimated cost — and
-waits for your confirmation. After the run it reports the credits actually billed.
+waits for your confirmation. Unknown fees are **not estimated**, not zero. P2 costs
+more credits than H/P1, P1 remains an option, and the model is chosen explicitly by use.
+Planning is not a server-enforced authorization gate. After the run it reports the credits actually billed.
 Failed tasks are not charged.
 
 ## Regions

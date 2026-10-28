@@ -1,6 +1,6 @@
 ---
 name: tripo-3d
-description: Generate a 3D model from a text prompt, a reference image, or a mesh, and write it into the project as GLB, FBX, OBJ, STL, USDZ or 3MF. Use when the user asks, in any language, for a 3D asset, prop, character, texture, rig, animation, low-poly or decimated mesh, format conversion or 3D print - e.g. "make me a low-poly X", "turn this image into 3D", "rig this character", "convert to FBX". Also use to re-run, convert or inspect a previous Tripo generation (v3.1, P1, P2 Preview).
+description: Generate a 3D model from a text prompt, a reference image, or a mesh, and write it into the project as GLB, FBX, OBJ, STL, USDZ or 3MF. Use when the user asks, in any language, for a 3D asset, prop, character, texture, rig, animation, low-poly or decimated mesh, format conversion or 3D print - e.g. "make me a low-poly X", "turn this image into 3D", "rig this character", "convert to FBX". Also use to re-run, convert or inspect a previous Tripo generation (v3.1, P1, P2).
 ---
 
 # Tripo 3D
@@ -23,11 +23,11 @@ blocked instead of describing the commands as if they had run.
 
 ## Command form
 
-Requires `tripo-cli` 0.7.3 or later. In this skill, in `tripo-game-asset` and in
+Requires `tripo-cli` >=0.8.0. In this skill, in `tripo-game-asset` and in
 [`references/capability.md`](references/capability.md), `tripo <args>` always means:
 
-- POSIX: `TRIPO_CLIENT_APP=deepseek TRIPO_DISTRIBUTION_CHANNEL=deepseek_plugin npx tripo-cli@latest <args>`
-- PowerShell: `$env:TRIPO_CLIENT_APP='deepseek'; $env:TRIPO_DISTRIBUTION_CHANNEL='deepseek_plugin'; npx tripo-cli@latest <args>`
+- POSIX: `TRIPO_CLIENT_APP=deepseek TRIPO_DISTRIBUTION_CHANNEL=deepseek_plugin tripo <args>`
+- PowerShell: `$env:TRIPO_CLIENT_APP='deepseek'; $env:TRIPO_DISTRIBUTION_CHANNEL='deepseek_plugin'; tripo <args>`
 
 Prefix every command in a pipeline with both variables, including commands from
 references. Set both variables in the same shell call as the command: every call starts a fresh
@@ -38,18 +38,18 @@ those events also carry the user's Tripo account id since CLI 0.7.1), and
 `TRIPO_ANALYTICS_ENABLED=0` turns the analytics and that account lookup off. They do
 not change the region, the confirmation rules or the stdout output.
 
-`npx` downloads the CLI on first use, so a fresh machine needs no manual install. If
-`npx` itself is missing, Node.js is not installed — have the user install Node.js LTS
-first. On China-mainland networks, when the download stalls, switch to the npmmirror
-registry and retry: `npm config set registry https://registry.npmmirror.com`.
-Installing globally (`npm install -g tripo-cli`) makes repeated calls faster — ask
-before doing it. A global `tripo` may replace `npx tripo-cli@latest` only when
-`tripo --version` reports 0.7.3 or later.
+First run `tripo --version`; continue only if it reports >=0.8.0. If missing or
+older, stop and ask the user before installing. With their consent run
+`npm install -g tripo-cli@0.8`, then recheck the version; do not silently use
+npm latest or an older CLI. Node.js LTS is required.
+Do not change the user's npm registry or execution policy to bypass a blocker.
+For China-mainland network issues, npmmirror may be discussed as an optional
+registry with the user; it must not be selected or configured automatically.
 
 ## Before the first generation
 
 ```bash
-TRIPO_CLIENT_APP=deepseek TRIPO_DISTRIBUTION_CHANNEL=deepseek_plugin npx tripo-cli@latest doctor   # verifies key, network, region, balance
+TRIPO_CLIENT_APP=deepseek TRIPO_DISTRIBUTION_CHANNEL=deepseek_plugin tripo doctor   # after the version gate; verifies key, network, region, balance
 ```
 
 That is `tripo doctor` written out in full; the rest of this skill uses the short form.
@@ -103,9 +103,9 @@ code expired or was denied — run the same login command again for a fresh code
 ## The command
 
 ```bash
-tripo make "a stylized treasure chest" --for game-mobile --json --yes
-tripo make concept.png --for game-pc --json --yes
-tripo make front.png back.png --json --yes           # 2-4 images -> multiview
+tripo make "a stylized treasure chest" --for game-mobile --model tripo-p2 --json --yes
+tripo make concept.png --for game-pc --model tripo-p2 --json --yes
+tripo make front.png back.png --model tripo-p2 --json --yes # 2-4 images -> multiview
 tripo make hero.glb --then texture,rig --json --yes  # import an existing mesh
 tripo make @last --then convert:fbx --json --yes     # continue from the last task
 ```
@@ -131,7 +131,7 @@ path instead.
   use a chain-free preset instead (`toy` for low-poly, with `-p face_limit=...`)
   or tell the user the extra format costs credits before running.
 - `--then <steps>` overrides the chain. Steps: `texture` `convert` `import`
-  `rig-check` `rig` `retarget` `segment` `complete` `decimate` `smartsegment`.
+  `rig-check` `rig` `retarget` `segment` `complete` `decimate` `smartsegment` `uv`.
   There is no `refine` or `stylize` step — the API endpoints behind them have been
   retired.
   Arguments use `step:key=value`; a bare value maps to the step's primary argument
@@ -165,7 +165,7 @@ a wrong result when missed:
 
 - **P1 strips what it does not support.** P1 (`face_limit` 50–20000) has no `quad`,
   `smart_low_poly`, `generate_parts` or `geometry_quality`; the CLI removes them with
-  a warning and the result changes. Use `--model tripo-p2` (Preview) for low-poly
+  a warning and the result changes. Use `--model tripo-p2` for low-poly
   quads and `--model tripo-v3.1` for the others.
 - **`generate_parts` needs bare geometry.** Always pass `texture=false pbr=false` with
   it — the server defaults `texture` to true and rejects the request (`1004`) if
@@ -178,6 +178,12 @@ a wrong result when missed:
   default orientation and return a wrongly oriented `success` with no error.
 
 ## Plan first, run after the user confirms
+
+Disclose the selected model, paid steps and fee uncertainty; P2 costs more credits than H/P1.
+When a quote is unavailable, say **not estimated**, not free or zero. The tables
+below are reference prices, not a live quote. This is an assistant workflow,
+not a server-enforced authorization gate: `--yes` bypasses the CLI prompt and
+a plan does not prove user consent.
 
 Credits are frozen the moment a task is submitted, so before running any command
 that generates or processes (`make`, `generate`, `redo`, `batch run`, `model|anim|mesh
@@ -198,14 +204,16 @@ with `--dry-run --json` appended. It plans and validates with **zero network cal
 no credits and no API key**, and prints the plan on stdout:
 
 ```bash
-tripo make concept.png --for game-mobile --then rig,convert:fbx --dry-run --json
-# {"dry_run":true,"valid":true,"model":"P1-20260311","model_reason":"scenario game-mobile",
+tripo make concept.png --for game-mobile --model tripo-p2 --then rig,convert:fbx --dry-run --json
+# Illustrative payload excerpt, not captured execution output:
+# {"dry_run":true,"valid":true,"model":"P2-20260801","model_reason":"explicit --model",
 #  "steps":[{"name":"image-to-model","endpoint":"/v3/generation/image-to-model","task_type":"image_to_model",
-#            "payload":{"input":"<upload:concept.png>","model":"P1-20260311","texture":true,"pbr":true,"face_limit":15000}},
-#           {"name":"rig","endpoint":"/v3/animations/rig","payload":{"input":"<upstream>","model":"v2.5-20260210"}},
+#            "payload":{"input":"<upload:concept.png>","model":"P2-20260801","texture":true,"pbr":true,"texture_quality":"standard","face_limit":15000}},
+#           {"name":"rig","endpoint":"/v3/animations/rig","payload":{"input":"<upstream>","model":"v3.0-20260909"}},
 #           {"name":"convert","endpoint":"/v3/models/convert","payload":{"input":"<upstream>","format":"FBX"}}],
-#  "pending_uploads":["concept.png"],"deliverables":["FBX","GLB"],
-#  "warnings":["--then overrides the default game-mobile processing chain"],"errors":[],"cost_notes":[]}
+#  "pending_uploads":["concept.png"],"deliverables":["FBX"],
+#  "warnings":["--then overrides the default game-mobile processing chain"],"errors":[],
+#  "cost_notes":["cost not estimated (not zero credits); notes below are cost impacts only; check regional official pricing and balance before running"]}
 ```
 
 `steps[].payload` is the exact body each call will POST (scenario defaults merged,
@@ -215,13 +223,13 @@ spending; fix them and dry-run again. `warnings` are auto-adjustments (`P1 does 
 support quad (removed)`) — show them to the user, they change the outcome. Only when
 `valid` is true turn the steps into the plan below.
 
-Example of the shape (a `--for game-mobile` text prompt):
+Example of the shape (a `--for game-mobile --model tripo-p2` text prompt; reference prices):
 
 ```
 1. text-to-model  POST /v3/generation/text-to-model — generate the mesh
-   model=P1-20260311 face_limit=15000 texture=true pbr=true          ~40 credits
+   model=P2-20260801 face_limit=15000 texture=true pbr=true ~110 credits
 2. convert        POST /v3/models/convert — export FBX, texture_size=2048   ~10 credits
-→ ./Assets/Art/Props/tripo-out/<name>-<id8>/model.fbx (+ model.glb, preview.png)   ≈ 50 credits
+→ ./Assets/Art/Props/tripo-out/<name>-<id8>/model.fbx (+ model.glb, preview.png) ≈ 120 credits
 ```
 
 Wait for explicit confirmation — silence is not a yes. Then run exactly the command
@@ -265,12 +273,13 @@ it); check that what ran matches what you showed, and say so if it differs.
    commands/generate` and `tripo docs --topic commands/process` print the same tables
    with more detail, and `tripo docs --topic common-errors` the error table. Do not
    send the user to the website for a parameter name.
-6. **Let the CLI choose the model version.** It picks `tripo-p1` (low-poly) when the
-   prompt has low-poly words ("low poly", "voxel") or **any `face_limit` ≤ 20000** is
-   set, and `tripo-v3.1` (high fidelity) otherwise. So `-p face_limit=15000` on its own
-   switches to P1 — add `--model tripo-v3.1` when the user wants v3.1 quality under a
-   face cap. Only pass `--model` when the user explicitly asks for one or the rule
-   picks wrong.
+6. **Choose the model by intended use, topology and geometry requirements.** Prefer
+   P series for real-time, editable game assets, including PC/console and visually
+   detailed assets; use P2 for the current topology workflow. Choose H when dense
+   geometry or H-only features are needed. Pass the chosen `--model` explicitly so
+   an older CLI, a preset or the API fallback cannot override context from the
+   conversation. Respect a model the user explicitly requests. Mesh density is not
+   visual quality; "high-quality game asset" alone is not a reason to choose H.
 
 ## Spending the user's credits
 
@@ -302,7 +311,8 @@ number is `credits_consumed` on the result):
 | add-ons per generation | `texture_quality=detailed` +10, `extreme` +20, `geometry_quality=detailed` +20, `quad` +5, `smart_low_poly` +10, `generate_parts` +20 |
 | texture step | 10 standard / 20 detailed / 30 extreme |
 | convert | 5, or 10 with any non-default option |
-| decimate | 30 (v2.0) / 10 (v1.0) |
+| decimate | 30 (v2.0) / 35, or 40 with quads (v3.0; `smart_uv` is free) / 10 (v1.0) |
+| uv | 20 (separate paid UV task, not the free retopology option) |
 | segment / complete | 40 / 50 (`quick_cap` 30) |
 | smartsegment | 85 image / 55 model |
 | rig-check / rig / retarget | free / 25 / 10 per clip |
