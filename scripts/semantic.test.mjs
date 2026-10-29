@@ -11,11 +11,11 @@ const capability = existsSync(resolve(root, refPath)) ? read(refPath) : main;
 const all = [main, game, capability].join('\n');
 
 test('release metadata and shared regional package stay consistent', () => {
-  assert.equal(JSON.parse(read('plugin/package.json')).version, '0.1.6');
+  assert.equal(JSON.parse(read('plugin/package.json')).version, '0.2.0');
   const current = read('CHANGELOG.md').split(/^## /m)[1];
-  assert.match(current, /^0\.1\.6\n/);
-  assert.ok(read('README.md').includes('0.1.6'), 'README.md must name the version');
-  for (const [name, text] of [['package', all + read('plugin/README.md')], ['README.md', read('README.md')], ['CHANGELOG 0.1.6', current]]) {
+  assert.match(current, /^0\.2\.0\n/);
+  assert.ok(read('README.md').includes('0.2.0'), 'README.md must name the version');
+  for (const [name, text] of [['package', all + read('plugin/README.md')], ['README.md', read('README.md')], ['CHANGELOG 0.2.0', current]]) {
     assert.doesNotMatch(text, /local candidate|not yet published|unreleased|unpublished/i, name);
     assert.doesNotMatch(text, /\bPreview\b/, name);
   }
@@ -38,7 +38,7 @@ test('model selection is explicit, use-based and keeps alternatives', () => {
   assert.match(capability, /48–50000[\s\S]*48–25000/);
   assert.match(game, /--for game-pc --model tripo-p2/);
   assert.match(game, /--model tripo-v3\.1 -p generate_parts=true/);
-  assert.match(capability, /P1[^\n]*lower cost or faster/);
+  assert.match(capability, /P1[^\n]*lower cost/);
   assert.doesNotMatch(all, /never auto-selected|Let the CLI choose|auto-selects the low-poly|any\s+`face_limit` ≤ 20000\*\* pick P1|PC\/console, film, print/i);
 });
 

@@ -58,7 +58,7 @@ Only `plugin/` is published; its `files` allowlist keeps everything else out of 
 
 ## Install and verify
 
-Version **0.1.6**. CLI >=0.8.0 is required: run `tripo --version`; if it is missing
+Version **0.2.0**. CLI >=0.8.0 is required: run `tripo --version`; if it is missing
 or older, stop and, with the user's consent, install `npm install -g tripo-cli@0.8`,
 then check the version again.
 The shared package retains both `cn` and `ov` accounts; ask for the correct region.
@@ -233,20 +233,20 @@ Most DeepSeek users are in mainland China, so both regions are a hard requiremen
 which site the account is on before starting a device login, because a device flow on the wrong
 console sends the user to a site without their account. A wrong region is recoverable: the CLI
 probes both regions when it verifies a key, and `tripo doctor` reports a key-versus-region
-mismatch with the fix. Candidate setup never silently changes the npm registry
-or falls back to a published CLI with old semantics.
+mismatch with the fix. Setup never silently changes the npm registry or falls back
+to a CLI older than 0.8.0.
 
 Both skills set `TRIPO_CLIENT_APP=deepseek` and `TRIPO_DISTRIBUTION_CHANNEL=deepseek_plugin` on
 every CLI call. The values carry no user data; the CLI's usage analytics read them, and
-`TRIPO_ANALYTICS_ENABLED=0` turns the analytics off. As of `tripo-cli` 0.7.1:
+`TRIPO_ANALYTICS_ENABLED=0` turns the analytics off. As of `tripo-cli` 0.8.0:
 
 - analytics run only for `ov` calls, so `cn` usage is never attributed;
 - since 0.7.1, `ov` events also carry the user's Tripo account id, looked up through
   `POST https://apiplatform.tripo3d.ai/verify` (the opt-out skips that lookup);
-- the CLI only recognizes `codex`, `workbuddy`, `zcode` and `kimi` (with their `*_plugin`
-  channels) and records any other value, including `deepseek` / `deepseek_plugin`, as `unknown`.
+- the CLI recognizes `deepseek` / `deepseek_plugin` alongside the other platforms' values
+  and records any unrecognized value as `unknown`.
 
-DeepSeek usage is therefore not attributed in either region until the CLI adds these values.
+DeepSeek usage is therefore attributed for `ov` calls only.
 
 ## Related
 

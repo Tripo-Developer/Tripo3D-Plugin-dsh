@@ -37,7 +37,7 @@ in the plan; neither mobile nor a small face budget automatically means P1.
 | ----------------------------- | ------------------- | ----------------------------------------------------- |
 | mobile, WebGL, many instances | `--for game-mobile --model tripo-p2` | P2, face_limit 15000, 2K textures, FBX |
 | PC / console game asset       | `--for game-pc --model tripo-p2`     | P2, detailed PBR, FBX |
-| animated character            | `--for anim --model tripo-p2`        | P2, rig-check, then rig (v3.0, tripo spec), then retarget idle + walk |
+| animated character            | `--for anim --model tripo-p2`        | P2, rig-check, then rig (v3.0, no `spec`), then retarget idle + walk |
 
 Override the face budget when the project has a stricter one:
 
@@ -55,7 +55,7 @@ Check the selected model's capabilities against the project budget:
   The request carries `model=P2-20260801` (the API rejects the alias itself).
   Generation costs 100 bare / 110 textured credits before optional extras.
 - **P1** (`--model tripo-p1`, 50–20000 faces) — an explicit alternative when its
-  capabilities, speed or lower cost suit the request (30–50 generation credits).
+  capabilities or lower cost suit the request (30–50 generation credits).
   A small budget or low-poly style alone does not force this version; no quads.
 - **H v3.1** (`--model tripo-v3.1`) — select for dense source geometry, budgets
   beyond P2's limits, or `smart_low_poly`, `generate_parts` and `geometry_quality`,
@@ -170,8 +170,9 @@ tripo make "a robot soldier, T-pose" --model tripo-p2 --json --yes \
 
 ## Format notes
 
-- **Three.js / web**: GLB. `--for ar-web` adds the web-oriented defaults (decimate to
-  20k faces, plus a USDZ for iOS Quick Look). `-p compress=geometry` at generation
+- **Three.js / web**: GLB. `--for ar-web` adds the web-oriented defaults (P2 generated
+  at 20k faces, no decimate step; the GLB plus a USDZ for iOS Quick Look — `--then`
+  replaces that chain and keeps only its final file). `-p compress=geometry` at generation
   emits a meshopt-compressed GLB for smaller downloads.
 - **Unity / Unreal**: FBX via `--then convert:fbx`, or `--for game-mobile` which
   already converts. Useful convert options: `fbx_preset=blender|3dsmax|mixamo`,

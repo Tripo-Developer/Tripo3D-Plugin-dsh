@@ -14,7 +14,7 @@ Keywords: model versions · H series (`tripo-v3.x`) · P series (`tripo-p1`, `tr
 | `--model` (CLI alias) | wire value sent as `model` | status | use for | limits |
 | --- | --- | --- | --- | --- |
 | `tripo-v3.1` | `v3.1-20260211` | GA | H series: dense geometry, or H-only generation features | full parameter set; API fallback when `model` is omitted |
-| `tripo-p1` | `P1-20260311` | GA | P series option when lower cost or faster generation matters and its capabilities fit | `face_limit` 50–20000; no `quad`, `smart_low_poly`, `generate_parts`, `geometry_quality` (the CLI strips them with a warning); adds `export_uv` |
+| `tripo-p1` | `P1-20260311` | GA | P series option when lower cost matters and its capabilities fit | `face_limit` 50–20000; no `quad`, `smart_low_poly`, `generate_parts`, `geometry_quality` (the CLI strips them with a warning); adds `export_uv` |
 | `tripo-p2` | `P2-20260801` | GA | P series: preferred consideration for real-time, editable game assets; triangle or native quad topology | `face_limit` 48–50000 tri / 48–25000 quad; supports `quad`, not `smart_low_poly`, `generate_parts`, `geometry_quality` (stripped with a warning). Costs more credits than H/P1 |
 | `tripo-v3.0`, `tripo-v2.5` | `v3.0-20250812`, `v2.5-20250123` | Legacy | only when the user asks | |
 
@@ -69,7 +69,7 @@ Series model detail <https://developers.tripo3d.ai/en/models/p1>.
 | `texture_version` | derived from `model` | generation texture version independent of geometry: `v3.5-20260815`, `v3.0-20250812` (usual default), `v2.5-20250123`. For fast generation use `texture_version=v3.5-20260815`; the separate texture step uses `model=v3.5-20260815` instead |
 | `delight` | `true` | v3.5 textures only (`texture_version=v3.5-20260815`): remove baked-in lighting from the reference image before texturing; `false` keeps the original shading. Older texture versions ignore it |
 | `geometry_quality` | `standard` | `detailed` = Ultra geometry (+20). v3.x only |
-| `quad` | `false` | quad mesh (+5); forces FBX output — see "Parameter rules that fail quietly" in the skill. v3.x and P2 |
+| `quad` | `false` | quad mesh (+5 on v3.x, none on P2); forces FBX output — see "Parameter rules that fail quietly" in the skill. v3.x and P2 |
 | `smart_low_poly` | `false` | hand-modelled-style low-poly topology (+10); with `face_limit`, the window is 500–20000 tri / 500–10000 quad. v3.x only |
 | `generate_parts` | `false` | editable segmented parts (+20). Needs `texture=false pbr=false` — see "Parameter rules that fail quietly" in the skill. `quad` is ignored; `smart_low_poly` wins and suppresses parts. v3.x only |
 | `auto_size` | `false` | scale the model to real-world metres |
@@ -227,10 +227,20 @@ jobs:
     params: { texture_quality: detailed }
 ```
 
-State is saved next to the manifest (`assets.yaml.state.json`) after every job, so
-re-running the same command skips the jobs that already succeeded; `--fresh` starts
-over. Failed jobs retry `--retries` times and the run exits 6 if any stays failed.
-Final stdout JSON: `{"total","success","failed","state_file","jobs":{...}}` — each job
+`batch run` prints no plan card and asks nothing: plan the whole list with one dry run
+of the matching `tripo make` per preset/params combination, multiplying its
+`generation_credits_estimate` by the jobs that share it.
+
+State is saved next to the manifest (`assets.yaml.state.json`) after every job and as
+soon as each paid task is created, so re-running the same command skips the jobs that
+already succeeded; `--fresh` starts over. A job is retried (`--retries`) only when the
+failed attempt left no paid task behind. Anything else — a lost create response, a
+timeout, a failed download, a failure after an earlier task of the job succeeded —
+stops it as `needs_attention`, and it is never resubmitted, not even on re-run: its
+state entry lists `tasks`, `error` and `suggestion`. Follow the suggestion; deleting
+the entry or `--fresh` resubmits paid work, so ask the user first. The run exits 6 if
+any job stays `failed` or `needs_attention`. Final stdout JSON:
+`{"total","success","failed","needs_attention","state_file","jobs":{...}}` — each job
 entry carries `status`, `attempts` and the final `task_id`; the itemised credit report
 for a batch comes from `tripo task get <task_id> --json` (and `tripo usage`). Keep
 `concurrency` within the pools listed under "Spending the user's credits" in the skill

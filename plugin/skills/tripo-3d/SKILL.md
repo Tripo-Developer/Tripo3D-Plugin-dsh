@@ -213,15 +213,20 @@ tripo make concept.png --for game-mobile --model tripo-p2 --then rig,convert:fbx
 #           {"name":"convert","endpoint":"/v3/models/convert","payload":{"input":"<upstream>","format":"FBX"}}],
 #  "pending_uploads":["concept.png"],"deliverables":["FBX"],
 #  "warnings":["--then overrides the default game-mobile processing chain"],"errors":[],
-#  "cost_notes":["cost not estimated (not zero credits); notes below are cost impacts only; check regional official pricing and balance before running"]}
+#  "generation_credits_estimate":110,
+#  "cost_notes":["estimated generation cost: 110 credits (official list price; chain steps not estimated)"]}
 ```
 
 `steps[].payload` is the exact body each call will POST (scenario defaults merged,
 aliases turned into wire values, illegal parameters already stripped). `errors` are
 blocking — the dry run exits 2 on them, exactly like the real run would before
 spending; fix them and dry-run again. `warnings` are auto-adjustments (`P1 does not
-support quad (removed)`) — show them to the user, they change the outcome. Only when
-`valid` is true turn the steps into the plan below.
+support quad (removed)`) — show them to the user, they change the outcome.
+`generation_credits_estimate` is the official list price of the generation step alone
+(times `-n`); it is `null` — not estimated, never zero — for P1, legacy models,
+imports and task references, and it never covers `--then` steps: price those from
+the table under "Spending the user's credits". Only when `valid` is true turn the
+steps into the plan below.
 
 Example of the shape (a `--for game-mobile --model tripo-p2` text prompt; reference prices):
 
@@ -310,7 +315,7 @@ number is `credits_consumed` on the result):
 | image- or multiview-to-model, v3.1 | 20 bare / 30 textured |
 | text-to-model, P1 | 30 bare / 40 textured (P2: 100 / 110) |
 | image- or multiview-to-model, P1 | 40 bare / 50 textured (P2: 100 / 110) |
-| add-ons per generation | `texture_quality=detailed` +10, `extreme` +20, `geometry_quality=detailed` +20, `quad` +5, `smart_low_poly` +10, `generate_parts` +20 |
+| add-ons per generation | `texture_quality=detailed` +10, `extreme` +20, `geometry_quality=detailed` +20, `quad` +5 (v3.x; none on P2), `smart_low_poly` +10, `generate_parts` +20 |
 | texture step | 10 standard / 20 detailed / 30 extreme |
 | convert | 5, or 10 with any non-default option |
 | decimate | 30 (v2.0) / 35, or 40 with quads (v3.0; `smart_uv` is free) / 10 (v1.0) |
