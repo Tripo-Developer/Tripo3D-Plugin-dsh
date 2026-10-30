@@ -106,13 +106,13 @@ code expired or was denied — run the same login command again for a fresh code
 tripo make "a stylized treasure chest" --for game-mobile --model tripo-p2 -p pbr=false --json --yes
 tripo make concept.png --for game-pc --model tripo-p2 -p pbr=false --json --yes
 tripo make front.png back.png --model tripo-p2 -p pbr=false --json --yes # 2-4 images -> multiview
-tripo make hero.glb --then texture:pbr=false,rig --json --yes  # import an existing mesh
+tripo make hero.glb --then texture:pbr=false,rig:model=rig-v3.0 --json --yes  # import an existing mesh
 tripo make @last --then convert:fbx --json --yes     # continue from the last task
 ```
 
 Input type is auto-detected: quoted text, an image path or URL, 2-4 images, a model
-file (GLB/GLTF/FBX/OBJ/STL ≤150 MB — a `.gltf` references external files, so it only
-works as a URL; pass a `.glb` for local files), or a task reference (`@last`, `@name`,
+file (GLB/GLTF/FBX/OBJ/STL ≤150 MB — a local `.gltf` must be self-contained; one that
+references external files works only as a URL), or a task reference (`@last`, `@name`,
 a task id).
 
 A local image file is uploaded by the CLI itself — always reliable. An image
@@ -171,7 +171,8 @@ a wrong result when missed:
   quads and `--model tripo-v3.1` for the others.
 - **`generate_parts` needs bare geometry.** Always pass `texture=false pbr=false` with
   it — the server defaults `texture` to true and rejects the request (`1004`) if
-  either is on; the CLI only corrects an explicit `true`. Re-texture afterwards with
+  either is on; the CLI also switches an omitted `texture`/`pbr` off with a warning,
+  but pass both so the plan shows them. Re-texture afterwards with
   `--then texture:pbr=false`.
 - **`quad=true` forces FBX output.** Quads cannot be stored in glTF, so converting a
   quad mesh to `GLTF` is rejected.
@@ -230,6 +231,14 @@ imports and task references, and it never covers `--then` steps: price those fro
 the table under "Spending the user's credits". Only when `valid` is true turn the
 steps into the plan below.
 
+Only `tripo make` takes `--dry-run`; `generate` and the single-step `model|anim|mesh`
+commands reject it as an unknown option. Plan a step on an existing task as
+`tripo make <task_id> --then <step> --dry-run --json` and run that same `make`
+command. When a call only fits `generate` or a single-step command (for example
+`texture_prompt`, an object `--then` cannot carry), list its endpoint, arguments
+and price from `references/capability.md` and the price table below, and tell the
+user it has no dry run.
+
 Example of the shape (a `--for game-mobile --model tripo-p2 -p pbr=false` text prompt; reference prices):
 
 ```
@@ -243,7 +252,7 @@ Wait for explicit confirmation — silence is not a yes. Then run exactly the co
 you showed, with `--yes` and without `--dry-run`; if the user changes anything, redo
 the plan. A batch of several assets needs one confirmation for the whole list, not
 one per asset. Free commands (`doctor`, `balance`, `usage`, `whoami`, `task get|list|
-watch`, `history`, `rig-check`, `docs`, `files upload`, anything with `--dry-run`)
+watch`, `history`, `rig-check`, `docs`, `files upload`, `tripo make … --dry-run`)
 need no confirmation.
 
 Right before submitting, the CLI prints the same plan card on stderr (`--quiet` hides
@@ -268,11 +277,16 @@ it); check that what ran matches what you showed, and say so if it differs.
    `4` insufficient credits — tell the user to run `tripo topup` in their own terminal
    (it opens the billing page and waits for the credits to land); do not run it
    yourself · `5` content policy · `6` task failed (credits auto-refunded,
-   `tripo redo` often succeeds) · `7` network — when the error JSON carries a
-   `task_id`, the task succeeded and is billed but its download failed: run
-   `tripo task get <task_id> --download`, never re-run `tripo make` · `8` not found — a task id only
-   resolves under the key that created it, so when an older task 404s, fall back to
-   passing the local model file · `9` rate limit (retry with backoff).
+   `tripo redo` often succeeds) — unless the error says `timeout`: the task is still
+   running server-side and is billed if it succeeds, so resume it with
+   `tripo task watch <id> --download` and never redo or resubmit · `7` network — a
+   failed submit is never resent, and the task may already exist with credits frozen:
+   check `tripo balance` (`frozen`) before re-running, or the user can pay twice. When
+   the error JSON carries a `task_id`, the task succeeded and is billed but its download
+   failed: run `tripo task get <task_id> --download`, never re-run `tripo make` ·
+   `8` not found — a task id only resolves under the key that created it, so when an
+   older task 404s, fall back to passing the local model file · `9` rate limit (retry
+   with backoff).
 4. **Judge the result before moving on.** The result JSON gives `model_file` and
    `preview`. Read `preview.png` to check the asset actually matches the request. If
    it does not, show the user the preview and ask before re-rolling with `tripo redo`
@@ -287,7 +301,7 @@ it); check that what ran matches what you showed, and say so if it differs.
    detailed assets; within the P series the default is P2, and P1 is used only when
    the user names it or picks it as the lower cost option. Choose H when dense
    geometry or H-only features are needed. Pass the chosen `--model` explicitly so
-   an older CLI, a preset or the API fallback cannot override context from the
+   an older CLI or a preset cannot override context from the
    conversation. Respect a model the user explicitly requests. Mesh density is not
    visual quality; "high-quality game asset" alone is not a reason to choose H.
 7. **PBR is opt-in.** Add `-p pbr=false` to every generation command and write
@@ -296,12 +310,16 @@ it); check that what ran matches what you showed, and say so if it differs.
    explicitly asks for PBR — quality, realism, game engines or `texture_quality`
    do not imply it. The API turns PBR on when `pbr` is left out. Disclose PBR
    off/on in the plan. PBR can still be added later: when the user asks for it
-   after a model is already generated, do not run `make` again. Re-texture that
-   task with the `model texture` step (its task id or `@last` as input,
-   `-p pbr=true`): it bills only the texture step (10 credits standard, 20
-   detailed, 30 extreme) and keeps the geometry, but the textures are
-   regenerated, so re-supply the original reference image as `texture_prompt`
-   if there was one.
+   after a model is already generated, do not generate again. Re-texture that
+   task: plan it with `tripo make <task_id> --then texture:pbr=true --dry-run --json`
+   (set the quality as `texture:detailed,pbr=true`; `@last` also works as the
+   input), then run the same command with `--yes` instead of `--dry-run`. It
+   bills only the texture step (10 credits standard, 20 detailed, 30 extreme)
+   and keeps the geometry, but the textures are regenerated, so re-supply the
+   original reference image as `texture_prompt` if there was one. `--then`
+   cannot carry it, so that run is
+   `tripo model texture <task_id> -p pbr=true -p 'texture_prompt={"image":"<file_token>"}'`,
+   which has no dry run (see "Plan first, run after the user confirms").
 
 ## Spending the user's credits
 
@@ -321,7 +339,9 @@ reported on each result.
   10 mesh ops — and **only 1 image generation** (text-to-image, image-to-image,
   multiview). Never fan out image jobs; run them one after another.
 
-Approximate list prices, so the cost can be quoted before a run (the authoritative
+Official list prices from the Tripo pricing pages (developers.tripo3d.com/zh/pricing,
+developers.tripo3d.ai/pricing; the same numbers in both regions), checked on
+2026-10-30, so the cost can be quoted before a run (the authoritative
 number is `credits_consumed` on the result):
 
 | operation | credits |
@@ -330,15 +350,15 @@ number is `credits_consumed` on the result):
 | image- or multiview-to-model, v3.1 | 20 bare / 30 textured |
 | text-to-model, P1 | 30 bare / 40 textured (P2: 100 / 110) |
 | image- or multiview-to-model, P1 | 40 bare / 50 textured (P2: 100 / 110) |
-| add-ons per generation | `texture_quality=detailed` +10, `extreme` +20, `geometry_quality=detailed` +20, `quad` +5 (v3.x; none on P2), `smart_low_poly` +10, `generate_parts` +20 |
+| add-ons per generation | `texture_quality=detailed` +10, `extreme` +20, `geometry_quality=detailed` +20, `quad` +5 (v3.1; none on P2), `smart_low_poly` +10, `generate_parts` +20 |
 | texture step | 10 standard / 20 detailed / 30 extreme |
-| convert | 5, or 10 with any non-default option |
+| convert | 5, or 10 with a complex-tier option (see the convert row in `references/capability.md`) |
 | decimate | 30 (v2.0) / 35, or 40 with quads (v3.0; `smart_uv` is free) / 10 (v1.0) |
 | uv | 20 (separate paid UV task, not the free retopology option) |
 | segment / complete | 40 / 50 (`quick_cap` 30) |
 | smartsegment | 85 image / 55 model |
 | rig-check / rig / retarget | free / 25 / 10 per clip |
-| text-to-image, image-to-image | 5–20 depending on model and size tier |
+| text-to-image, image-to-image | 5–20 depending on model and size tier; GPT image `quality=high` and above cost more |
 | image-to-multiview / edit-multiview / image-to-splat | 10 / 5 per edited view / 30 |
 
 Failed and cancelled tasks are never charged: credits are frozen at submission and

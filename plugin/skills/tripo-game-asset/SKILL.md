@@ -94,10 +94,10 @@ an LOD to a project with a hard budget, and reduce it locally if it overshoots.
 Generation's own `face_limit` does hold as an upper bound, so this caveat is specific
 to `decimate`.
 
-`decimate` accepts 500–20000 faces (500–10000 with `quad=true`). For a source above
-2M faces or a budget above 20000, use
-`decimate:face_limit=<n>,model=v1.0` — the v1.0 model takes up to 2 000 000 faces but
-has no bake. Alternatively set `face_limit` on the `convert` step, which decimates during
+`decimate` accepts 500–20000 faces (500–10000 with `quad=true`). For a budget above
+20000, use
+`decimate:face_limit=<n>,model=v1.0` — v1.0 takes a `face_limit` up to 2 000 000 tri /
+150 000 quad (required) but has no bake. Alternatively set `face_limit` on the `convert` step, which decimates during
 export at the complex-convert price.
 
 `decimate:model=v3.0` is the newest retopology (35 credits, 40 with `quad=true`, against
@@ -140,9 +140,8 @@ riggable it stops before spending rigging credits.
 Explicit control over the rig and clips:
 
 ```bash
-tripo make "a robot soldier, T-pose" --model tripo-p2 -p pbr=false --json --yes \
-  | tripo anim check --json \
-  | tripo anim rig --spec mixamo --out-format fbx --json \
+tripo make "a robot soldier, T-pose" --model tripo-p2 -p pbr=false \
+  --then rig-check,rig:model=rig-v3.0,spec=mixamo,out_format=fbx --json --yes \
   | tripo anim retarget --animation preset:idle preset:walk preset:run --json
 ```
 
@@ -150,16 +149,18 @@ tripo make "a robot soldier, T-pose" --model tripo-p2 -p pbr=false --json --yes 
   image that is not in T-pose, generate one first:
   `tripo generate text-to-image "full-body front view of <character>" -p template=t_pose --json --yes`
   (or `tripo generate image-to-image ref.png -p template=t_pose`), then
-  `tripo generate image-to-model @last -p pbr=false` and rig from there.
+  `tripo generate image-to-model @last --model tripo-p2 -p pbr=false` and rig from there.
 - `rig-check` is free and returns the body type: `biped`, `quadruped`, `hexapod`,
-  `octopod`, `avian`, `serpentine`, `aquatic`. Rig with the type it recommends —
-  `rig:rig_type=quadruped` in a chain, `--rig-type quadruped` on `tripo anim rig` — the
-  default is `biped`.
-- `--spec mixamo` produces a Unity Humanoid / Mixamo-compatible skeleton; when the
-  final format is FBX add `fbx_preset=mixamo` on the convert step so bone naming and
-  axes match.
-- Clips available with the default v3.0 rig, for biped: `preset:idle`
-  `walk` `run` `jump` `fall` `turn` `climb` `dive` `slash` `shoot` `hurt`. Creatures use
+  `octopod`, `avian`, `serpentine`, `aquatic`. Rig with the type it recommends and
+  the model for it — `rig:rig_type=quadruped,model=rig-v2.5` in a chain,
+  `--rig-type quadruped --model rig-v2.5` on `tripo anim rig`; a biped takes `rig-v3.0`,
+  and the default type is `biped`. `--for anim` always rigs with v3.0, so write an
+  animal's chain with `--then`.
+- `--spec unity` (v3.0 rig) gives a Unity Humanoid skeleton and `--spec mixamo` a
+  Mixamo-compatible one; with `mixamo`, when the final format is FBX add
+  `fbx_preset=mixamo` on the convert step so bone naming and axes match.
+- Clips available with the v3.0 rig, for biped: `preset:idle`
+  `walk` `run` `jump` `fall` `turn` `climb` `dive` `slash` `shoot` `hurt`. Creatures (v2.5 rig) use
   `preset:quadruped:walk`, `preset:hexapod:walk`, `preset:octopod:walk`,
   `preset:serpentine:march`, `preset:aquatic:march`. The older `rig:model=v1.0-20240301`
   is biped-only but has 90+ `preset:biped:*` clips (dances, emotes, sports, combat) —
@@ -170,7 +171,7 @@ tripo make "a robot soldier, T-pose" --model tripo-p2 -p pbr=false --json --yes 
   `--then retarget:` carries a single clip; use the piped `tripo anim retarget
   --animation a b c` form for several.
 - To animate a mesh the project already has:
-  `tripo make hero.glb --then rig-check,rig,retarget:preset:walk --json --yes`
+  `tripo make hero.glb --then rig-check,rig:model=rig-v3.0,retarget:preset:walk --json --yes`
 
 ## Format notes
 
@@ -183,7 +184,9 @@ tripo make "a robot soldier, T-pose" --model tripo-p2 -p pbr=false --json --yes 
   `export_orientation=+x|-x|+y|-y` (forward axis for the engine; final convert only),
   `pivot_to_center_bottom=true` (pivot at the feet), `scale_factor=<n>` (unit fix),
   `texture_format=PNG` (lossless instead of the JPEG default), `pack_uv=true`
-  (single atlas). Any of these bills the complex convert tier (10 credits, not 5).
+  (single atlas). `pivot_to_center_bottom`, `scale_factor` and `texture_format` (like
+  `texture_size`, `face_limit` and `quad`) bill the complex convert tier (10 credits,
+  not 5); `fbx_preset`, `export_orientation` and `pack_uv` on their own do not.
 - Quads (`-p quad=true`, v3.1 or P2 only) force FBX output, so plan an FBX pipeline
   for quad assets: GLB is not a convert target, and converting a quad mesh to `GLTF`
   is rejected.

@@ -61,6 +61,7 @@ test('P2 is the P-series default; P1 only when the user names or picks it', () =
 
 test('processing and image lifecycle match the candidate contract', () => {
   assert.match(capability, /CLI default `v3\.0-20260909`/);
+  assert.match(capability, /Always pass the model by body type: `model=rig-v3\.0` for `biped`[^\n]*`model=rig-v2\.5` \(`v2\.5-20260210`, the official animal rig\)[^\n]*raw API default is `v1\.0-20240301`/);
   assert.match(capability, /v2\.5\/v3\.0/);
   assert.match(capability, /avian[\s\S]*others[\s\S]*no presets/);
   assert.match(capability, /fast[\s\S]*v3\.5-20260815/);
@@ -82,9 +83,10 @@ test('every generation and texture command keeps PBR off unless asked', () => {
   ];
   const generates = c => /^tripo make (?!@)(?:"|[\w./-]+\.(?:png|jpe?g|webp)\b)/.test(c) || /^tripo generate (?:text|image|multiview)-to-model\b/.test(c);
   const textures = c => /^tripo model texture\b/.test(c) || /--then\s+\S*\btexture\b/.test(c);
+  const addsPbrLater = c => /^tripo (?:make|model texture) (?:<task_id>|@last) /.test(c) && /(?:texture:|-p )pbr=true\b/.test(c);
   const checked = commands.filter(c => generates(c) || textures(c));
   assert.ok(checked.length >= 10, `expected generation examples, found ${checked.length}`);
-  for (const c of checked) assert.match(c, /-p pbr=false|texture:pbr=false/, c);
+  for (const c of checked.filter(c => !addsPbrLater(c))) assert.match(c, /-p pbr=false|texture:pbr=false/, c);
   for (const l of flat.split('\n').filter(l => /^\s+params: \{|defaults: \{/.test(l))) assert.match(l, /pbr: false/, l);
   assert.match(main, /7\. \*\*PBR is opt-in\.\*\*/);
   assert.match(all, /tripo-cli 0\.8\.0\/0\.8\.1 presets \(all except `print`\) turn PBR on, so\s+always add\s+`-p pbr=false`/);
@@ -99,4 +101,11 @@ test('CLI dependency and plan disclosure do not promise enforcement', () => {
   assert.match(main, /not a server-enforced/);
   assert.match(main, /more credits than H\/P1/);
   assert.doesNotMatch(all, /~?5\s*[x×]|five times/i);
+});
+
+test('API facts: model has no fallback, URLs last about 2 hours, only make dry-runs', () => {
+  assert.doesNotMatch(all, /API fallback|falls back to H/);
+  assert.doesNotMatch(all, /five minutes|anything with `--dry-run`/);
+  assert.match(capability, /about 2 hours/);
+  assert.ok(main.includes('tripo make <task_id> --then texture:pbr=true --dry-run --json'));
 });
