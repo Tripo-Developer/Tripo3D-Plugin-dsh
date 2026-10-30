@@ -42,6 +42,23 @@ test('model selection is explicit, use-based and keeps alternatives', () => {
   assert.doesNotMatch(all, /never auto-selected|Let the CLI choose|auto-selects the low-poly|any\s+`face_limit` ≤ 20000\*\* pick P1|PC\/console, film, print/i);
 });
 
+test('P2 is the P-series default; P1 only when the user names or picks it', () => {
+  const flat = text => text.replace(/\s+/g, ' ');
+  assert.match(flat(main), /within the P series the default is P2, and P1 is used only when the user names it or picks it/);
+  assert.match(main, /`tripo-p2` → `P2-20260801`/);
+  assert.match(flat(capability), /Within the P series the default is P2; choose P1 only when the user names it or picks it/);
+  assert.match(capability, /\| `tripo-p2` \|[^\n]*\| P series default:/);
+  assert.match(capability, /\| `tripo-p1` \|[^\n]*only when the user names it or picks it/);
+  assert.match(flat(game), /an optional lower cost alternative \(30–50 generation credits\), used only when the user names it or picks it/);
+  assert.match(flat(read('README.md')), /P1 is used only when the user names it or picks it/);
+  assert.match(flat(read('plugin/README.md')), /P1 is used only when you name it or pick it/);
+  assert.match(flat(read('CHANGELOG.md').split(/^## /m)[1]), /P-series default; P1 is used only when the user names it or picks it/);
+  for (const line of all.split('\n').filter(l => /^tripo (?:generate|make) /.test(l))) {
+    assert.ok(!line.includes('--model tripo-p1'), `P1 must not be a generic example: ${line}`);
+  }
+  assert.doesNotMatch(flat(all + read('README.md') + read('plugin/README.md')), /Choose P1 deliberately|lower cost matters and its capabilities fit|capabilities or lower cost suit|P1 remains/);
+});
+
 test('processing and image lifecycle match the candidate contract', () => {
   assert.match(capability, /CLI default `v3\.0-20260909`/);
   assert.match(capability, /v2\.5\/v3\.0/);
@@ -55,6 +72,23 @@ test('processing and image lifecycle match the candidate contract', () => {
   assert.match(capability, /smart_uv[\s\S]*no atlas image/);
   assert.match(capability, /\| `uv` \|/);
   assert.match(all, /Do not add (?:a |an )?(?:separate|paid) UV task/);
+});
+
+test('every generation and texture command keeps PBR off unless asked', () => {
+  const flat = all.replace(/\\\r?\n\s*/g, ' ');
+  const commands = [
+    ...flat.split('\n').map(l => l.trim()).filter(l => l.startsWith('tripo ')),
+    ...[...flat.matchAll(/`(tripo [^`]+)`/g)].map(m => m[1]),
+  ];
+  const generates = c => /^tripo make (?!@)(?:"|[\w./-]+\.(?:png|jpe?g|webp)\b)/.test(c) || /^tripo generate (?:text|image|multiview)-to-model\b/.test(c);
+  const textures = c => /^tripo model texture\b/.test(c) || /--then\s+\S*\btexture\b/.test(c);
+  const checked = commands.filter(c => generates(c) || textures(c));
+  assert.ok(checked.length >= 10, `expected generation examples, found ${checked.length}`);
+  for (const c of checked) assert.match(c, /-p pbr=false|texture:pbr=false/, c);
+  for (const l of flat.split('\n').filter(l => /^\s+params: \{|defaults: \{/.test(l))) assert.match(l, /pbr: false/, l);
+  assert.match(main, /7\. \*\*PBR is opt-in\.\*\*/);
+  assert.match(all, /tripo-cli 0\.8\.0\/0\.8\.1 presets \(all except `print`\) turn PBR on, so\s+always add\s+`-p pbr=false`/);
+  assert.doesNotMatch(all, /"pbr":true|pbr=true\s+~|detailed PBR|PBR hero/);
 });
 
 test('CLI dependency and plan disclosure do not promise enforcement', () => {

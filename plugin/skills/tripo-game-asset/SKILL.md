@@ -1,6 +1,6 @@
 ---
 name: tripo-game-asset
-description: Recipes for producing game-ready 3D assets with Tripo and wiring them into a game project - low-poly props on a face budget, PBR hero assets, LOD chains, and rigged characters with walk, run and jump clips for Unity, Unreal, Godot or Three.js. Use when the user, in any language, is building a game or real-time 3D scene and needs props, characters, placeholder art, LODs or an animated rig, rather than a single one-off model.
+description: Recipes for producing game-ready 3D assets with Tripo and wiring them into a game project - low-poly props on a face budget, hero assets (PBR only on request), LOD chains, and rigged characters with walk, run and jump clips for Unity, Unreal, Godot or Three.js. Use when the user, in any language, is building a game or real-time 3D scene and needs props, characters, placeholder art, LODs or an animated rig, rather than a single one-off model.
 ---
 
 # Game asset pipeline
@@ -36,14 +36,18 @@ in the plan; neither mobile nor a small face budget automatically means P1.
 | target                        | preset              | what it does                                          |
 | ----------------------------- | ------------------- | ----------------------------------------------------- |
 | mobile, WebGL, many instances | `--for game-mobile --model tripo-p2` | P2, face_limit 15000, 2K textures, FBX |
-| PC / console game asset       | `--for game-pc --model tripo-p2`     | P2, detailed PBR, FBX |
+| PC / console game asset       | `--for game-pc --model tripo-p2`     | P2, detailed textures, FBX |
 | animated character            | `--for anim --model tripo-p2`        | P2, rig-check, then rig (v3.0, no `spec`), then retarget idle + walk |
+
+PBR is opt-in: tripo-cli 0.8.0/0.8.1 presets (all except `print`) turn PBR on, so
+always add `-p pbr=false` (and `texture:pbr=false` on a chained texture step) unless
+the user explicitly asks for PBR; a game engine or "high quality" does not imply it.
 
 Override the face budget when the project has a stricter one:
 
 ```bash
 tripo make "a health potion bottle" --for game-mobile --model tripo-p2 \
-  -p face_limit=3000 --then convert:format=FBX,texture_size=1024 \
+  -p face_limit=3000 -p pbr=false --then convert:format=FBX,texture_size=1024 \
   -o ./Assets/Art/Props --json --yes
 ```
 
@@ -54,8 +58,8 @@ Check the selected model's capabilities against the project budget:
   console assets. Add `-p quad=true` when the editing workflow needs native quads.
   The request carries `model=P2-20260801` (the API rejects the alias itself).
   Generation costs 100 bare / 110 textured credits before optional extras.
-- **P1** (`--model tripo-p1`, 50–20000 faces) — an explicit alternative when its
-  capabilities or lower cost suit the request (30–50 generation credits).
+- **P1** (`--model tripo-p1`, 50–20000 faces) — an optional lower cost alternative
+  (30–50 generation credits), used only when the user names it or picks it.
   A small budget or low-poly style alone does not force this version; no quads.
 - **H v3.1** (`--model tripo-v3.1`) — select for dense source geometry, budgets
   beyond P2's limits, or `smart_low_poly`, `generate_parts` and `geometry_quality`,
@@ -66,7 +70,7 @@ Check the selected model's capabilities against the project budget:
 
 ```bash
 tripo make "an ornate treasure chest, fantasy style" --for game-pc --model tripo-p2 \
-  -o ./assets/models --json --yes
+  -p pbr=false -o ./assets/models --json --yes
 ```
 
 For a set of props, generate them one at a time and check each `preview.png` before
@@ -76,7 +80,7 @@ genuinely large sets use `tripo batch run manifest.yaml`, which is resumable.
 ## LOD chain from one source
 
 ```bash
-tripo make "a stone golem" --for game-pc --model tripo-v3.1 --then decimate:5000 --json --yes
+tripo make "a stone golem" --for game-pc --model tripo-v3.1 -p pbr=false --then decimate:5000 --json --yes
 tripo make @last --then decimate:1500,convert:fbx --json --yes
 ```
 
@@ -112,7 +116,7 @@ returns no atlas image; independent `uv` is a separately billed operation.
 ```bash
 tripo make "a wooden cart with detachable wheels" --model tripo-v3.1 -p generate_parts=true \
   -p texture=false -p pbr=false --json --yes                    # parts at generation time
-tripo make @last --then texture --json --yes                    # texture the parts afterwards
+tripo make @last --then texture:pbr=false --json --yes          # texture the parts afterwards
 tripo make hero.glb --then segment:v2.0-20260430,complete --json --yes   # split an existing mesh, then close the cut faces
 ```
 
@@ -127,7 +131,7 @@ tripo make hero.glb --then segment:v2.0-20260430,complete --json --yes   # split
 ## Characters with animation
 
 ```bash
-tripo make "a knight in full armor, T-pose, standing straight" --for anim --model tripo-p2 --json --yes
+tripo make "a knight in full armor, T-pose, standing straight" --for anim --model tripo-p2 -p pbr=false --json --yes
 ```
 
 `--for anim` runs `rig-check` first, which gates the chain: if the mesh is not
@@ -136,7 +140,7 @@ riggable it stops before spending rigging credits.
 Explicit control over the rig and clips:
 
 ```bash
-tripo make "a robot soldier, T-pose" --model tripo-p2 --json --yes \
+tripo make "a robot soldier, T-pose" --model tripo-p2 -p pbr=false --json --yes \
   | tripo anim check --json \
   | tripo anim rig --spec mixamo --out-format fbx --json \
   | tripo anim retarget --animation preset:idle preset:walk preset:run --json
@@ -146,7 +150,7 @@ tripo make "a robot soldier, T-pose" --model tripo-p2 --json --yes \
   image that is not in T-pose, generate one first:
   `tripo generate text-to-image "full-body front view of <character>" -p template=t_pose --json --yes`
   (or `tripo generate image-to-image ref.png -p template=t_pose`), then
-  `tripo generate image-to-model @last` and rig from there.
+  `tripo generate image-to-model @last -p pbr=false` and rig from there.
 - `rig-check` is free and returns the body type: `biped`, `quadruped`, `hexapod`,
   `octopod`, `avian`, `serpentine`, `aquatic`. Rig with the type it recommends —
   `rig:rig_type=quadruped` in a chain, `--rig-type quadruped` on `tripo anim rig` — the

@@ -62,7 +62,8 @@ Version **0.2.0**. CLI >=0.8.0 is required: run `tripo --version`; if it is miss
 or older, stop and, with the user's consent, install `npm install -g tripo-cli@0.8`,
 then check the version again.
 The shared package retains both `cn` and `ov` accounts; ask for the correct region.
-P2 costs more credits than H/P1, P1 remains selectable, fees may be **not estimated**,
+P2 is the P-series default and costs more credits than H/P1, P1 is used only when
+the user names it or picks it as the lower cost option, fees may be **not estimated**,
 and a plan is not a server-enforced authorization gate.
 
 ```bash

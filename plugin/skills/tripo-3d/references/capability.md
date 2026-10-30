@@ -14,8 +14,8 @@ Keywords: model versions · H series (`tripo-v3.x`) · P series (`tripo-p1`, `tr
 | `--model` (CLI alias) | wire value sent as `model` | status | use for | limits |
 | --- | --- | --- | --- | --- |
 | `tripo-v3.1` | `v3.1-20260211` | GA | H series: dense geometry, or H-only generation features | full parameter set; API fallback when `model` is omitted |
-| `tripo-p1` | `P1-20260311` | GA | P series option when lower cost matters and its capabilities fit | `face_limit` 50–20000; no `quad`, `smart_low_poly`, `generate_parts`, `geometry_quality` (the CLI strips them with a warning); adds `export_uv` |
-| `tripo-p2` | `P2-20260801` | GA | P series: preferred consideration for real-time, editable game assets; triangle or native quad topology | `face_limit` 48–50000 tri / 48–25000 quad; supports `quad`, not `smart_low_poly`, `generate_parts`, `geometry_quality` (stripped with a warning). Costs more credits than H/P1 |
+| `tripo-p1` | `P1-20260311` | GA | P series alternative, only when the user names it or picks it as the lower cost option | `face_limit` 50–20000; no `quad`, `smart_low_poly`, `generate_parts`, `geometry_quality` (the CLI strips them with a warning); adds `export_uv` |
+| `tripo-p2` | `P2-20260801` | GA | P series default: preferred for real-time, editable game assets; triangle or native quad topology | `face_limit` 48–50000 tri / 48–25000 quad; supports `quad`, not `smart_low_poly`, `generate_parts`, `geometry_quality` (stripped with a warning). Costs more credits than H/P1 |
 | `tripo-v3.0`, `tripo-v2.5` | `v3.0-20250812`, `v2.5-20250123` | Legacy | only when the user asks | |
 
 CLI 0.8.0 also accepts `H3.1`, `P1.0`, `P2.0`, mapped to the
@@ -34,10 +34,10 @@ names, the P Series endpoint pages list the wire values. `tripo-turbo` and
 and controlled topology, including requests such as "a robot for a game". A face
 budget is a compatibility constraint, not a visual-quality ranking or a reason to
 force P1. Choose H for explicitly dense/high-poly source geometry, a budget beyond
-P2's window, or `smart_low_poly`, `generate_parts` or `geometry_quality`. Choose P1
-deliberately when its capabilities and cost fit the user's request. Texture detail
-and PBR are independent choices available to both H and P; PC/mobile platform names
-do not determine the model family.
+P2's window, or `smart_low_poly`, `generate_parts` or `geometry_quality`. Within the
+P series the default is P2; choose P1 only when the user names it or picks it as the
+lower cost option. Texture detail and PBR are independent choices available to both
+H and P; PC/mobile platform names do not determine the model family.
 
 **Installed CLI compatibility.** Always pass `--model` after making that decision
 and verify `steps[].payload.model` in a dry run. Older CLI presets and automatic
@@ -64,7 +64,7 @@ Series model detail <https://developers.tripo3d.ai/en/models/p1>.
 | param | default | notes |
 | --- | --- | --- |
 | `face_limit` | adaptive | upper bound on triangles. v3.1 any; P1 50–20000; P2 48–50000 |
-| `texture`, `pbr` | `true`, `true` | `pbr=true` forces `texture=true`. `texture=false pbr=false` = bare geometry, no texture credits |
+| `texture`, `pbr` | `true`, `true` | API defaults; omitting `pbr` turns PBR on, so this plugin sends `pbr=false` unless the user explicitly asks for PBR. `pbr=true` forces `texture=true`. `texture=false pbr=false` = bare geometry, no texture credits |
 | `texture_quality` | `standard` | `standard` / `detailed` (HD, +10 credits) / `extreme` (8K, +20) / `fast` (same price and size as standard, less detail). `fast` requires `v3.5-20260815`: the CLI selects it when no texture version is set; an explicit older version conflicts and must be fixed before submission |
 | `texture_version` | derived from `model` | generation texture version independent of geometry: `v3.5-20260815`, `v3.0-20250812` (usual default), `v2.5-20250123`. For fast generation use `texture_version=v3.5-20260815`; the separate texture step uses `model=v3.5-20260815` instead |
 | `delight` | `true` | v3.5 textures only (`texture_version=v3.5-20260815`): remove baked-in lighting from the reference image before texturing; `false` keeps the original shading. Older texture versions ignore it |
@@ -94,7 +94,7 @@ URL only, cannot follow a task). A bare value after `:` sets the primary argumen
 
 | step | primary arg | arguments and constraints |
 | --- | --- | --- |
-| `texture` | `texture_quality` | `standard`/`detailed`/`extreme`/`fast`, `pbr`, `texture_seed`, `texture_alignment`, `part_names` (only these parts of a segmented model), `bake` (true), `compress`; `model` `v3.0-20250812` (default) / `v3.5-20260815` / `v2.5-20250123`. `fast` requires v3.5; if omitted the CLI selects v3.5, but an explicit older model conflicts. v3.5 also supports `delight`. Guidance `texture_prompt` is exactly one of `{"text":"…"}` (optionally with `style_image`), `{"image":"<url or file_token>"}` or `{"images":[front, left, back, right]}`; the docs make it optional only for Tripo-generated models, so pass one for an imported mesh, and re-supply the original reference image when re-texturing a generated task. It is an object, so only the `-p` form carries it: `tripo model texture <input> -p 'texture_prompt={"text":"worn leather"}'`. Re-textures any model, including imported files |
+| `texture` | `texture_quality` | `standard`/`detailed`/`extreme`/`fast`, `pbr` (send `false` unless the user explicitly asks for PBR), `texture_seed`, `texture_alignment`, `part_names` (only these parts of a segmented model), `bake` (true), `compress`; `model` `v3.0-20250812` (default) / `v3.5-20260815` / `v2.5-20250123`. `fast` requires v3.5; if omitted the CLI selects v3.5, but an explicit older model conflicts. v3.5 also supports `delight`. Guidance `texture_prompt` is exactly one of `{"text":"…"}` (optionally with `style_image`), `{"image":"<url or file_token>"}` or `{"images":[front, left, back, right]}`; the docs make it optional only for Tripo-generated models, so pass one for an imported mesh, and re-supply the original reference image when re-texturing a generated task. It is an object, so only the `-p` form carries it: `tripo model texture <input> -p pbr=false -p 'texture_prompt={"text":"worn leather"}'`. Re-textures any model, including imported files |
 | `convert` | `format` | `GLTF` `USDZ` `FBX` `OBJ` `STL` `3MF` (3MF = single-colour print). Mesh: `quad`, `force_symmetry` (quad only), `face_limit`, `flatten_bottom` + `flatten_bottom_threshold` (0.01). Texture: `texture_size` (4096), `texture_format` `JPEG`/`PNG`/`WEBP`/`BMP`/`TIFF`/`TARGA`/`HDR`/`DPX`/`OPEN_EXR`, `bake` (true), `pack_uv`, `export_vertex_colors` (OBJ/GLTF only). Export: `pivot_to_center_bottom`, `scale_factor`, `with_animation` (true), `animate_in_place`, `part_names`, `export_orientation`, `fbx_preset` `blender`/`3dsmax`/`mixamo`. `quad` with `GLTF` is rejected. Any non-default option bills the complex tier (10 credits instead of 5) |
 | `import` | – | GLB/GLTF/FBX/OBJ/STL ≤150 MB; `make <file>` runs it implicitly. A `.gltf` references external files, so it only works as a URL — pass a `.glb` for local files |
 | `rig-check` | – | free. GLB input. Returns `riggable` and `rig_type`: `biped` `quadruped` `hexapod` `octopod` `avian` `serpentine` `aquatic`. Gate step — the chain continues from the same model |
@@ -123,13 +123,13 @@ when the user needs independent re-unwrapping or the UV layout preview.
 ```bash
 tripo generate text-to-image "full-body front view of a ninja" -p template=t_pose --json --yes
 tripo generate image-to-image sketch.png --prompt "clean concept art, neutral background" --json --yes
-tripo generate image-to-model @last --json --yes           # an image task id is a valid input
+tripo generate image-to-model @last -p pbr=false --json --yes  # an image task id is a valid input
 tripo generate image-to-multiview photo.png --json --yes   # 1 image -> front/left/back/right sheet
 tripo generate edit-multiview @last -p 'prompts=[{"view":"front","prompt":"add a sword"}]' --json --yes  # 1-4 {view,prompt} edits on that sheet
 tripo generate image-to-splat photo.png --json --yes       # gaussian splat, not a mesh
 # P series, same 3D endpoints, explicit model (the CLI sends the wire value):
-tripo generate text-to-model "a low poly knight" --model tripo-p1 -p face_limit=8000 --json --yes   # model=P1-20260311
-tripo generate image-to-model photo.png --model tripo-p2 -p quad=true -p face_limit=12000 --json --yes  # model=P2-20260801, FBX out
+tripo generate text-to-model "a low poly knight" --model tripo-p2 -p face_limit=8000 -p pbr=false --json --yes   # model=P2-20260801
+tripo generate image-to-model photo.png --model tripo-p2 -p quad=true -p face_limit=12000 -p pbr=false --json --yes  # model=P2-20260801, FBX out
 ```
 
 - Templates (`-p template=...`) are whitelisted per endpoint. text-to-image:
@@ -214,7 +214,7 @@ Batch manifest (`tripo batch run assets.yaml [--concurrency 2] [--retries 1] [--
 
 ```yaml
 concurrency: 2
-defaults: { for: game-mobile, then: "convert:fbx", out: ./assets }
+defaults: { for: game-mobile, then: "convert:fbx", out: ./assets, params: { pbr: false } }
 jobs:
   - input: "a bronze sword"
   - input: "a wooden shield"
@@ -224,7 +224,7 @@ jobs:
     then: "convert:stl,flatten_bottom=true"
   - inputs: [hero-front.png, hero-back.png]
     name: hero
-    params: { texture_quality: detailed }
+    params: { texture_quality: detailed, pbr: false }   # job params replace defaults.params
 ```
 
 `batch run` prints no plan card and asks nothing: plan the whole list with one dry run

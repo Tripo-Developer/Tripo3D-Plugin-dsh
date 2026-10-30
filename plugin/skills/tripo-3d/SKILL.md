@@ -103,10 +103,10 @@ code expired or was denied — run the same login command again for a fresh code
 ## The command
 
 ```bash
-tripo make "a stylized treasure chest" --for game-mobile --model tripo-p2 --json --yes
-tripo make concept.png --for game-pc --model tripo-p2 --json --yes
-tripo make front.png back.png --model tripo-p2 --json --yes # 2-4 images -> multiview
-tripo make hero.glb --then texture,rig --json --yes  # import an existing mesh
+tripo make "a stylized treasure chest" --for game-mobile --model tripo-p2 -p pbr=false --json --yes
+tripo make concept.png --for game-pc --model tripo-p2 -p pbr=false --json --yes
+tripo make front.png back.png --model tripo-p2 -p pbr=false --json --yes # 2-4 images -> multiview
+tripo make hero.glb --then texture:pbr=false,rig --json --yes  # import an existing mesh
 tripo make @last --then convert:fbx --json --yes     # continue from the last task
 ```
 
@@ -125,6 +125,8 @@ path instead.
 
 - `--for <scenario>` picks model, parameters, chain and export format:
   `game-mobile` `game-pc` `film` `print` `ar-web` `anim` `toy`.
+  tripo-cli 0.8.0/0.8.1 presets (all except `print`) turn PBR on, so always add
+  `-p pbr=false` unless the user explicitly asks for PBR.
   The base generation already outputs GLB; some preset chains append a **paid**
   convert step (`game-mobile`/`game-pc` → FBX, `print` → STL, `ar-web` → USDZ).
   When the user only wants GLB, that convert buys a format nobody asked for —
@@ -170,7 +172,7 @@ a wrong result when missed:
 - **`generate_parts` needs bare geometry.** Always pass `texture=false pbr=false` with
   it — the server defaults `texture` to true and rejects the request (`1004`) if
   either is on; the CLI only corrects an explicit `true`. Re-texture afterwards with
-  `--then texture`.
+  `--then texture:pbr=false`.
 - **`quad=true` forces FBX output.** Quads cannot be stored in glTF, so converting a
   quad mesh to `GLTF` is rejected.
 - **`export_orientation` belongs on the final `convert` step.** Set at generation
@@ -190,7 +192,7 @@ that generates or processes (`make`, `generate`, `redo`, `batch run`, `model|ani
 <step>` other than `rig-check`), show the user a plan and wait for a yes:
 
 - **input** — the prompt, image(s), file or task reference (`@last` → which task);
-- **model** — the CLI alias *and* the wire value it sends (`tripo-p1` → `P1-20260311`);
+- **model** — the CLI alias *and* the wire value it sends (`tripo-p2` → `P2-20260801`);
 - **steps** — one numbered line per API call, in run order: endpoint, what it does,
   arguments. `--for` presets expand to a chain (`game-mobile` = generation → convert
   FBX 2K; `anim` = generation → rig-check → rig → retarget), so list every step the
@@ -204,11 +206,11 @@ with `--dry-run --json` appended. It plans and validates with **zero network cal
 no credits and no API key**, and prints the plan on stdout:
 
 ```bash
-tripo make concept.png --for game-mobile --model tripo-p2 --then rig,convert:fbx --dry-run --json
+tripo make concept.png --for game-mobile --model tripo-p2 -p pbr=false --then rig,convert:fbx --dry-run --json
 # Illustrative payload excerpt, not captured execution output:
 # {"dry_run":true,"valid":true,"model":"P2-20260801","model_reason":"explicit --model",
 #  "steps":[{"name":"image-to-model","endpoint":"/v3/generation/image-to-model","task_type":"image_to_model",
-#            "payload":{"input":"<upload:concept.png>","model":"P2-20260801","texture":true,"pbr":true,"texture_quality":"standard","face_limit":15000}},
+#            "payload":{"input":"<upload:concept.png>","model":"P2-20260801","texture":true,"pbr":false,"texture_quality":"standard","face_limit":15000}},
 #           {"name":"rig","endpoint":"/v3/animations/rig","payload":{"input":"<upstream>","model":"v3.0-20260909"}},
 #           {"name":"convert","endpoint":"/v3/models/convert","payload":{"input":"<upstream>","format":"FBX"}}],
 #  "pending_uploads":["concept.png"],"deliverables":["FBX"],
@@ -228,11 +230,11 @@ imports and task references, and it never covers `--then` steps: price those fro
 the table under "Spending the user's credits". Only when `valid` is true turn the
 steps into the plan below.
 
-Example of the shape (a `--for game-mobile --model tripo-p2` text prompt; reference prices):
+Example of the shape (a `--for game-mobile --model tripo-p2 -p pbr=false` text prompt; reference prices):
 
 ```
 1. text-to-model  POST /v3/generation/text-to-model — generate the mesh
-   model=P2-20260801 face_limit=15000 texture=true pbr=true ~110 credits
+   model=P2-20260801 face_limit=15000 texture=true pbr=false ~110 credits
 2. convert        POST /v3/models/convert — export FBX, texture_size=2048   ~10 credits
 → ./Assets/Art/Props/tripo-out/<name>-<id8>/model.fbx (+ model.glb, preview.png) ≈ 120 credits
 ```
@@ -282,11 +284,24 @@ it); check that what ran matches what you showed, and say so if it differs.
    send the user to the website for a parameter name.
 6. **Choose the model by intended use, topology and geometry requirements.** Prefer
    P series for real-time, editable game assets, including PC/console and visually
-   detailed assets; use P2 for the current topology workflow. Choose H when dense
+   detailed assets; within the P series the default is P2, and P1 is used only when
+   the user names it or picks it as the lower cost option. Choose H when dense
    geometry or H-only features are needed. Pass the chosen `--model` explicitly so
    an older CLI, a preset or the API fallback cannot override context from the
    conversation. Respect a model the user explicitly requests. Mesh density is not
    visual quality; "high-quality game asset" alone is not a reason to choose H.
+7. **PBR is opt-in.** Add `-p pbr=false` to every generation command and write
+   chained texture steps as `texture:pbr=false` (`tripo model texture … -p pbr=false`);
+   textures stay on. Use `-p pbr=true` / `texture:pbr=true` only when the user
+   explicitly asks for PBR — quality, realism, game engines or `texture_quality`
+   do not imply it. The API turns PBR on when `pbr` is left out. Disclose PBR
+   off/on in the plan. PBR can still be added later: when the user asks for it
+   after a model is already generated, do not run `make` again. Re-texture that
+   task with the `model texture` step (its task id or `@last` as input,
+   `-p pbr=true`): it bills only the texture step (10 credits standard, 20
+   detailed, 30 extreme) and keeps the geometry, but the textures are
+   regenerated, so re-supply the original reference image as `texture_prompt`
+   if there was one.
 
 ## Spending the user's credits
 

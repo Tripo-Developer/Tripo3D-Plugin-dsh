@@ -60,8 +60,9 @@ Try prompts like:
 
 Every generation spends credits from your Tripo account. Before any paid step the
 agent shows a plan — the steps, the files it will write and the estimated cost — and
-waits for your confirmation. Unknown fees are **not estimated**, not zero. P2 costs
-more credits than H/P1, P1 remains an option, and the model is chosen explicitly by use.
+waits for your confirmation. Unknown fees are **not estimated**, not zero. P2 is the
+P-series default and costs more credits than H/P1, P1 is used only when you name it or
+pick it as the lower cost option, and the model is chosen explicitly by use.
 Planning is not a server-enforced authorization gate. After the run it reports the credits actually billed.
 Failed tasks are not charged.
 
