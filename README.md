@@ -61,6 +61,9 @@ Only `plugin/` is published; its `files` allowlist keeps everything else out of 
 Version **0.2.0**. CLI >=0.8.0 is required: run `tripo --version`; if it is missing
 or older, stop and, with the user's consent, install `npm install -g tripo-cli@0.8`,
 then check the version again.
+Standalone texture preflight additionally requires `tripo model texture --help`
+to list `--dry-run`; the baseline version alone does not establish this capability.
+If it is absent, stop that workflow until a supporting build is installed.
 The shared package retains both `cn` and `ov` accounts; ask for the correct region.
 P2 is the P-series default and costs more credits than H/P1, P1 is used only when
 the user names it or picks it as the lower cost option, fees may be **not estimated**,

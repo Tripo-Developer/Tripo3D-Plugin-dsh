@@ -41,7 +41,8 @@ not change the region, the confirmation rules or the stdout output.
 First run `tripo --version`; continue only if it reports >=0.8.0. If missing or
 older, stop and ask the user before installing. With their consent run
 `npm install -g tripo-cli@0.8`, then recheck the version; do not silently use
-npm latest or an older CLI. Node.js LTS is required.
+npm latest or an older CLI. The version gate alone does not establish whether
+standalone texture supports dry-run; check its help as below. Node.js LTS is required.
 Do not change the user's npm registry or execution policy to bypass a blocker.
 For China-mainland network issues, npmmirror may be discussed as an optional
 registry with the user; it must not be selected or configured automatically.
@@ -106,7 +107,8 @@ code expired or was denied — run the same login command again for a fresh code
 tripo make "a stylized treasure chest" --for game-mobile --model tripo-p2 -p pbr=false --json --yes
 tripo make concept.png --for game-pc --model tripo-p2 -p pbr=false --json --yes
 tripo make front.png back.png --model tripo-p2 -p pbr=false --json --yes # 2-4 images -> multiview
-tripo make hero.glb --then texture:pbr=false,rig:model=rig-v3.0 --json --yes  # import an existing mesh
+tripo make hero.glb --then rig-check,rig:model=rig-v3.0 --json --yes  # import and rig an existing mesh
+tripo model texture hero.glb -p pbr=false -p 'texture_prompt={"text":"worn leather"}' --dry-run --json
 tripo make @last --then convert:fbx --json --yes     # continue from the last task
 ```
 
@@ -207,7 +209,7 @@ with `--dry-run --json` appended. It plans and validates with **zero network cal
 no credits and no API key**, and prints the plan on stdout:
 
 ```bash
-tripo make concept.png --for game-mobile --model tripo-p2 -p pbr=false --then rig,convert:fbx --dry-run --json
+tripo make concept.png --for game-mobile --model tripo-p2 -p pbr=false --then rig:model=rig-v3.0,convert:fbx --dry-run --json
 # Illustrative payload excerpt, not captured execution output:
 # {"dry_run":true,"valid":true,"model":"P2-20260801","model_reason":"explicit --model",
 #  "steps":[{"name":"image-to-model","endpoint":"/v3/generation/image-to-model","task_type":"image_to_model",
@@ -224,20 +226,34 @@ tripo make concept.png --for game-mobile --model tripo-p2 -p pbr=false --then ri
 aliases turned into wire values, illegal parameters already stripped). `errors` are
 blocking — the dry run exits 2 on them, exactly like the real run would before
 spending; fix them and dry-run again. `warnings` are auto-adjustments (`P1 does not
-support quad (removed)`) — show them to the user, they change the outcome.
+support quad (removed)`) — show them to the user, they change the outcome. If a
+warning removes or alters an explicit user requirement, stop before spending, resolve
+the conflict with the user, and dry-run and confirm the revised plan.
 `generation_credits_estimate` is the official list price of the generation step alone
 (times `-n`); it is `null` — not estimated, never zero — for P1, legacy models,
 imports and task references, and it never covers `--then` steps: price those from
 the table under "Spending the user's credits". Only when `valid` is true turn the
 steps into the plan below.
 
-Only `tripo make` takes `--dry-run`; `generate` and the single-step `model|anim|mesh`
-commands reject it as an unknown option. Plan a step on an existing task as
+For standalone texture, first check `tripo model texture --help` for `--dry-run`.
+If it is absent, stop that workflow and ask the user to upgrade to a build that
+supports it, then recheck. Do not treat a hand-written plan as machine validation
+or assume CLI 0.9.0 supports the option. Run the exact `tripo model texture`
+command with `--dry-run --json`; inspect its payload, warnings and errors, and
+show the user the plan and cost uncertainty. `texture_prompt` is an object that
+only `-p` carries, so use this form for imported models and reference images.
+The dry run has zero network calls and spends no credits; a later texture task is
+paid. Its `generation_credits_estimate` is `null` (not estimated, never zero).
+`valid=true` means local checks passed, not that remote inputs or the server have
+been verified or that arbitrary passthrough fields are supported.
+
+These dry runs apply to `tripo make` and, when supported, `tripo model texture`.
+`generate` and other single-step `model|anim|mesh` commands do not take the option.
+For an existing task, plan a representable step with
 `tripo make <task_id> --then <step> --dry-run --json` and run that same `make`
-command. When a call only fits `generate` or a single-step command (for example
-`texture_prompt`, an object `--then` cannot carry), list its endpoint, arguments
-and price from `references/capability.md` and the price table below, and tell the
-user it has no dry run.
+command. If another operation
+cannot be represented that way, list its endpoint, arguments and reference price,
+and disclose that it has no machine dry-run; do not claim it was validated.
 
 Example of the shape (a `--for game-mobile --model tripo-p2 -p pbr=false` text prompt; reference prices):
 
@@ -245,18 +261,19 @@ Example of the shape (a `--for game-mobile --model tripo-p2 -p pbr=false` text p
 1. text-to-model  POST /v3/generation/text-to-model — generate the mesh
    model=P2-20260801 face_limit=15000 texture=true pbr=false ~110 credits
 2. convert        POST /v3/models/convert — export FBX, texture_size=2048   ~10 credits
-→ ./Assets/Art/Props/tripo-out/<name>-<id8>/model.fbx (+ model.glb, preview.png) ≈ 120 credits
+→ ./Assets/Art/Props/tripo-out/<name>-<id8>/model.fbx (+ preview.png) ≈ 120 credits
 ```
 
-Wait for explicit confirmation — silence is not a yes. Then run exactly the command
-you showed, with `--yes` and without `--dry-run`; if the user changes anything, redo
-the plan. A batch of several assets needs one confirmation for the whole list, not
-one per asset. Free commands (`doctor`, `balance`, `usage`, `whoami`, `task get|list|
-watch`, `history`, `rig-check`, `docs`, `files upload`, `tripo make … --dry-run`)
-need no confirmation.
+Wait for explicit confirmation — silence is not a yes. For a dry-run plan, run
+exactly the command you showed, with `--yes` and without `--dry-run`; if the user
+changes anything, redo the plan. An operation without dry-run requires its disclosed
+manual plan and confirmation. A batch of several assets needs one confirmation for
+the whole list, not one per asset. Free commands (`doctor`, `balance`, `usage`,
+`whoami`, `task get|list|watch`, `history`, `rig-check`, `docs`, `files upload`,
+supported `make` and `model texture` dry runs) need no confirmation.
 
-Right before submitting, the CLI prints the same plan card on stderr (`--quiet` hides
-it); check that what ran matches what you showed, and say so if it differs.
+Right before submitting `make`, the CLI prints its plan card on stderr (`--quiet`
+hides it); check that what ran matches what you showed, and say so if it differs.
 
 ## Running `tripo make`
 
@@ -310,16 +327,14 @@ it); check that what ran matches what you showed, and say so if it differs.
    explicitly asks for PBR — quality, realism, game engines or `texture_quality`
    do not imply it. The API turns PBR on when `pbr` is left out. Disclose PBR
    off/on in the plan. PBR can still be added later: when the user asks for it
-   after a model is already generated, do not generate again. Re-texture that
-   task: plan it with `tripo make <task_id> --then texture:pbr=true --dry-run --json`
-   (set the quality as `texture:detailed,pbr=true`; `@last` also works as the
-   input), then run the same command with `--yes` instead of `--dry-run`. It
-   bills only the texture step (10 credits standard, 20 detailed, 30 extreme)
-   and keeps the geometry, but the textures are regenerated, so re-supply the
-   original reference image as `texture_prompt` if there was one. `--then`
-   cannot carry it, so that run is
-   `tripo model texture <task_id> -p pbr=true -p 'texture_prompt={"image":"<file_token>"}'`,
-   which has no dry run (see "Plan first, run after the user confirms").
+   after a model is already generated, do not generate again. Check standalone
+   texture dry-run support, then plan the re-texture with
+   `tripo model texture <task_id> -p pbr=true -p 'texture_prompt={"image":"<file_token>"}' --dry-run --json`
+   when there was an original reference image (use its URL or file token; omit
+   `texture_prompt` if none). `@last` also works. After confirmation run that
+   same command without `--dry-run`. Only the texture task is billed; geometry is
+   kept but textures are regenerated. Its price is not estimated by dry-run; use
+   the reference table and disclose the uncertainty.
 
 ## Spending the user's credits
 
@@ -376,7 +391,7 @@ task has no `credits_breakdown`; its `credits_consumed` is the billed amount.
 
 `model_file` and `preview` describe the **final** chain step. After a convert
 step the native GLB and `preview.png` live on the earlier generation task —
-fetch them free with `tripo task get <chain task_id> --download` instead of
+fetch them free with `tripo task get <source_task_id> --download` instead of
 paying for another conversion.
 
 ## Presenting the finished asset

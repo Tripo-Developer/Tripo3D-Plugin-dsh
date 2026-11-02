@@ -34,6 +34,8 @@ through the plugin itself, so no approval is needed and the notice can be ignore
 - Node.js LTS and [`tripo-cli`](https://www.npmjs.com/package/tripo-cli) >=0.8.0.
   The agent checks `tripo --version` and, with your consent, runs
   `npm install -g tripo-cli@0.8` when it is missing or older.
+  Standalone texture preflight also requires `tripo model texture --help` to list
+  `--dry-run`; if it does not, that workflow stops until a supporting build is installed.
 - A Tripo account on either site. You can sign up during the first login, and new
   accounts get free credits.
 

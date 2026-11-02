@@ -2,6 +2,9 @@
 
 ## 0.2.0
 
+- Correct AR source/final output fields, independent LOD inputs, imported-mesh examples,
+  unsupported-parameter confirmation and segment-version guidance.
+
 - Require CLI >=0.8.0: check `tripo --version`; when missing or older, install
   `tripo-cli@0.8` with the user's consent. No npm latest fallback, automatic
   registry change or older CLI execution.

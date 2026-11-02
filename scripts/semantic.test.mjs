@@ -82,7 +82,7 @@ test('every generation and texture command keeps PBR off unless asked', () => {
     ...[...flat.matchAll(/`(tripo [^`]+)`/g)].map(m => m[1]),
   ];
   const generates = c => /^tripo make (?!@)(?:"|[\w./-]+\.(?:png|jpe?g|webp)\b)/.test(c) || /^tripo generate (?:text|image|multiview)-to-model\b/.test(c);
-  const textures = c => /^tripo model texture\b/.test(c) || /--then\s+\S*\btexture\b/.test(c);
+  const textures = c => /^tripo model texture (?!-\S*)\S/.test(c) || /--then\s+\S*\btexture\b/.test(c);
   const addsPbrLater = c => /^tripo (?:make|model texture) (?:<task_id>|@last) /.test(c) && /(?:texture:|-p )pbr=true\b/.test(c);
   const checked = commands.filter(c => generates(c) || textures(c));
   assert.ok(checked.length >= 10, `expected generation examples, found ${checked.length}`);
@@ -103,9 +103,46 @@ test('CLI dependency and plan disclosure do not promise enforcement', () => {
   assert.doesNotMatch(all, /~?5\s*[x×]|five times/i);
 });
 
-test('API facts: model has no fallback, URLs last about 2 hours, only make dry-runs', () => {
+test('API facts: model has no fallback and URLs last about 2 hours', () => {
   assert.doesNotMatch(all, /API fallback|falls back to H/);
   assert.doesNotMatch(all, /five minutes|anything with `--dry-run`/);
   assert.match(capability, /about 2 hours/);
-  assert.ok(main.includes('tripo make <task_id> --then texture:pbr=true --dry-run --json'));
+  assert.match(capability, /request without `model` returns `1004 model is required`/);
+});
+
+test('texture preflight is capability-gated and uses the same request with guidance', () => {
+  assert.match(main, /`tripo model texture --help` for `--dry-run`/);
+  assert.match(main, /If it is absent, stop that workflow/);
+  assert.match(main, /Do not treat a hand-written plan as machine validation/);
+  assert.match(main, /`valid=true` means local checks passed/);
+  assert.match(main, /`generation_credits_estimate` is `null` \(not estimated, never zero\)/);
+  assert.match(main, /tripo model texture hero\.glb -p pbr=false -p 'texture_prompt=\{"text":"worn leather"\}' --dry-run --json/);
+  assert.match(main, /tripo model texture <task_id> -p pbr=true -p 'texture_prompt=\{"image":"<file_token>"\}' --dry-run --json/);
+  assert.match(main, /same command without `--dry-run`/);
+  assert.doesNotMatch(main, /Only `tripo make` takes `--dry-run`|which has no dry run/);
+});
+
+test('rig dry-run examples explicitly select a rig model', () => {
+  assert.match(main, /--then rig:model=rig-v3\.0,convert:fbx --dry-run --json/);
+  for (const command of main.split('\n').filter(line => /^tripo .*--dry-run/.test(line))) {
+    const chain = command.match(/--then\s+(\S+)/)?.[1];
+    if (chain && /(?:^|,)rig(?=:|,|$)/.test(chain)) {
+      assert.match(chain, /(?:^|,)rig:(?:[^,]+,)*model=rig-v(?:1\.0|2\.[05]|3\.0)/, command);
+    }
+  }
+});
+
+
+test('AR delivery and LOD examples preserve their source model', () => {
+  assert.match(game, /source_model_file` is the source GLB for Three\.js/);
+  assert.match(game, /model_file` is the final USDZ/);
+  assert.match(game, /source_task_id` to fetch the source GLB/);
+  assert.match(main, /tripo task get <source_task_id> --download/);
+  assert.doesNotMatch(main, /<chain task_id> --download|model\.fbx[^\n]*\+ model\.glb/);
+  const lod = game.split('## LOD chain from one source')[1].split('## ')[0];
+  assert.match(lod, /-p texture_quality=detailed/);
+  assert.match(lod, /including the detailed-texture cost/);
+  assert.equal([...lod.matchAll(/tripo make GENERATION_TASK_ID --then decimate:/g)].length, 2);
+  assert.doesNotMatch(lod, /tripo make @last --then decimate|bakes normals/);
+  assert.doesNotMatch(main, /hero\.glb --then texture/);
 });

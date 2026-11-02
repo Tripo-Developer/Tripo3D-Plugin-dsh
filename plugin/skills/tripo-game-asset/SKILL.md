@@ -31,7 +31,8 @@ Use P2 for triangle or native quad topology; choose H when the task needs dense
 source geometry or an H-only feature. Visual quality, PBR and detailed textures do
 not imply H. Pass the chosen model explicitly, including with presets: installed
 CLI versions may still use older defaults. Disclose P2's higher credit cost
-in the plan; neither mobile nor a small face budget automatically means P1.
+in the plan; neither mobile nor a small face budget automatically means P1. Respect an explicit user
+model choice; if it conflicts with a requirement, resolve that conflict before spending.
 
 | target                        | preset              | what it does                                          |
 | ----------------------------- | ------------------- | ----------------------------------------------------- |
@@ -79,14 +80,27 @@ genuinely large sets use `tripo batch run manifest.yaml`, which is resumable.
 
 ## LOD chain from one source
 
+Plan the source generation with detailed textures, both decimation tasks and the
+FBX conversion, including the detailed-texture cost; obtain confirmation before
+spending. Generate the source once:
+
 ```bash
-tripo make "a stone golem" --for game-pc --model tripo-v3.1 -p pbr=false --then decimate:5000 --json --yes
-tripo make @last --then decimate:1500,convert:fbx --json --yes
+tripo make "a stone golem, dense high-poly source" --model tripo-v3.1 -p pbr=false -p texture_quality=detailed --json --yes
 ```
 
-`decimate` bakes the source's textures onto the low-poly by default, so the low LODs
-keep the look of the source. Each `@last` continues from the previous task rather than
-regenerating.
+Record its `task_id` from the result JSON. Replace `GENERATION_TASK_ID` in both
+commands below with that same actual ID. Every LOD starts from the source, not
+from `@last`, which would refer to the latest reduced model. The commands can run
+in separate shell calls; no shell variable needs to persist.
+
+```bash
+tripo make GENERATION_TASK_ID --then decimate:5000 --json --yes
+tripo make GENERATION_TASK_ID --then decimate:1500,convert:fbx --json --yes
+```
+
+`decimate` bakes textures onto the low-poly result by default. This recipe
+requests a dense H source; for an editable real-time asset generated directly,
+use P2 and the desired face budget instead.
 
 **`decimate`'s face budget is a target, not a ceiling** — a 1500-face request can come
 back at ~1900 triangles. Read the actual triangle count from the result before handing
@@ -198,7 +212,12 @@ tripo make "a robot soldier, T-pose" --model tripo-p2 -p pbr=false \
 
 ## Wiring into the project
 
-After a successful run, `model_file` in the result JSON is the path to import. Do the
+After a successful run, use the result JSON path matching the target format. For the
+default `ar-web` chain with triangle output and successful downloads,
+`source_model_file` is the source GLB for Three.js and
+`model_file` is the final USDZ for iOS. With an explicit `--then`, source download
+is disabled; use `source_task_id` to fetch the source GLB when needed. Other presets
+generally put the final output at `model_file`. Do the
 integration work the user actually asked for — add the loader call, register the
 prefab, update the asset manifest — rather than stopping at "the file is generated".
 Check `preview.png` first so a wrong asset does not get wired in.
