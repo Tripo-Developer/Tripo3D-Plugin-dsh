@@ -94,9 +94,9 @@ test('every generation and texture command keeps PBR off unless asked', () => {
 });
 
 test('CLI dependency and plan disclosure do not promise enforcement', () => {
-  assert.match(main, /0\.8\.0/);
-  assert.match(main, /npm install -g tripo-cli@0\.8\b/);
-  assert.doesNotMatch(main, /npx tripo-cli@latest|npm install -g tripo-cli@0\.7\.3/);
+  assert.match(main, /Requires the latest `tripo-cli`/);
+  assert.match(main, /npm install -g tripo-cli@latest\b/);
+  assert.doesNotMatch(main, /npx tripo-cli@latest|npm install -g tripo-cli@\d/);
   assert.match(main, /not estimated/);
   assert.match(main, /not a server-enforced/);
   assert.match(main, /more credits than H\/P1/);

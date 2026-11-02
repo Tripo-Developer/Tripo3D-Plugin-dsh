@@ -23,7 +23,7 @@ blocked instead of describing the commands as if they had run.
 
 ## Command form
 
-Requires `tripo-cli` >=0.8.0. In this skill, in `tripo-game-asset` and in
+Requires the latest `tripo-cli`. In this skill, in `tripo-game-asset` and in
 [`references/capability.md`](references/capability.md), `tripo <args>` always means:
 
 - POSIX: `TRIPO_CLIENT_APP=deepseek TRIPO_DISTRIBUTION_CHANNEL=deepseek_plugin tripo <args>`
@@ -38,10 +38,10 @@ those events also carry the user's Tripo account id since CLI 0.7.1), and
 `TRIPO_ANALYTICS_ENABLED=0` turns the analytics and that account lookup off. They do
 not change the region, the confirmation rules or the stdout output.
 
-First run `tripo --version`; continue only if it reports >=0.8.0. If missing or
-older, stop and ask the user before installing. With their consent run
-`npm install -g tripo-cli@0.8`, then recheck the version; do not silently use
-npm latest or an older CLI. The version gate alone does not establish whether
+First run `tripo --version` and `npm view tripo-cli version`; continue only if
+they match. If missing or older, stop and ask the user before installing. With
+their consent run `npm install -g tripo-cli@latest`, then recheck the version; do
+not silently use an older CLI. The version check alone does not establish whether
 standalone texture supports dry-run; check its help as below. Node.js LTS is required.
 Do not change the user's npm registry or execution policy to bypass a blocker.
 For China-mainland network issues, npmmirror may be discussed as an optional

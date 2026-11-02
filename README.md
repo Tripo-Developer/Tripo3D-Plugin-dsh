@@ -58,9 +58,10 @@ Only `plugin/` is published; its `files` allowlist keeps everything else out of 
 
 ## Install and verify
 
-Version **0.2.0**. CLI >=0.8.0 is required: run `tripo --version`; if it is missing
-or older, stop and, with the user's consent, install `npm install -g tripo-cli@0.8`,
-then check the version again.
+Version **0.2.0**. The latest `tripo-cli` is required: run `tripo --version` and
+compare it with `npm view tripo-cli version`; if it is missing or older, stop and,
+with the user's consent, install `npm install -g tripo-cli@latest`, then check the
+version again.
 Standalone texture preflight additionally requires `tripo model texture --help`
 to list `--dry-run`; the baseline version alone does not establish this capability.
 If it is absent, stop that workflow until a supporting build is installed.
@@ -136,8 +137,8 @@ A dsh plugin can register tools, connect MCP servers or add hooks. This plugin r
 only, because the work splits cleanly:
 
 - `tripo-cli` owns the API contract: auth, region detection, task polling, downloads, exit codes
-  and the `--json` stdout line. The skills require a verified >=0.8.0 CLI
-  installation; they must not bootstrap an older registry release.
+  and the `--json` stdout line. The skills require the latest CLI
+  release; they must not bootstrap an older registry release.
 - The skills own the operating manual: when to use Tripo, what to run first, how to branch on
   results, how to spend the user's credits and how to present the result.
 - dsh puts the skills in the model-visible catalog and provides the shell tool and sandbox.
@@ -238,7 +239,7 @@ which site the account is on before starting a device login, because a device fl
 console sends the user to a site without their account. A wrong region is recoverable: the CLI
 probes both regions when it verifies a key, and `tripo doctor` reports a key-versus-region
 mismatch with the fix. Setup never silently changes the npm registry or falls back
-to a CLI older than 0.8.0.
+to an older CLI.
 
 Both skills set `TRIPO_CLIENT_APP=deepseek` and `TRIPO_DISTRIBUTION_CHANNEL=deepseek_plugin` on
 every CLI call. The values carry no user data; the CLI's usage analytics read them, and

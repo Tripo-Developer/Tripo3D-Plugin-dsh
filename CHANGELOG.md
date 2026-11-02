@@ -5,9 +5,9 @@
 - Correct AR source/final output fields, independent LOD inputs, imported-mesh examples,
   unsupported-parameter confirmation and segment-version guidance.
 
-- Require CLI >=0.8.0: check `tripo --version`; when missing or older, install
-  `tripo-cli@0.8` with the user's consent. No npm latest fallback, automatic
-  registry change or older CLI execution.
+- Require the latest `tripo-cli`: compare `tripo --version` with
+  `npm view tripo-cli version`; when missing or older, install `tripo-cli@latest`
+  with the user's consent. No automatic registry change or older CLI execution.
 - Select H3.1/P1.0/P2.0 explicitly by intended use. P2 is now GA, costs more
   credits than H/P1 and is the P-series default; P1 is used only when the user
   names it or picks it as the lower cost option. Show fees or

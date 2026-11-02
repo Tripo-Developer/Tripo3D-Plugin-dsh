@@ -31,9 +31,9 @@ through the plugin itself, so no approval is needed and the notice can be ignore
 ## Requirements
 
 - A dsh session whose agent can run shell commands with network access.
-- Node.js LTS and [`tripo-cli`](https://www.npmjs.com/package/tripo-cli) >=0.8.0.
-  The agent checks `tripo --version` and, with your consent, runs
-  `npm install -g tripo-cli@0.8` when it is missing or older.
+- Node.js LTS and the latest [`tripo-cli`](https://www.npmjs.com/package/tripo-cli).
+  The agent compares `tripo --version` with `npm view tripo-cli version` and, with
+  your consent, runs `npm install -g tripo-cli@latest` when it is missing or older.
   Standalone texture preflight also requires `tripo model texture --help` to list
   `--dry-run`; if it does not, that workflow stops until a supporting build is installed.
 - A Tripo account on either site. You can sign up during the first login, and new

@@ -10,7 +10,7 @@ requirement, the command form, auth, the blocking behaviour of `tripo make`, exi
 codes, credit rules and the parameter rules that fail quietly. Every `tripo ...`
 command here uses that skill's command form:
 `TRIPO_CLIENT_APP=deepseek TRIPO_DISTRIBUTION_CHANNEL=deepseek_plugin tripo <args>`
-after the main skill's >=0.8.0 version check
+after the main skill's latest-version check
 on POSIX, or the PowerShell equivalent from that skill. Repeat both tags on each
 command in a pipeline; a prefix before the first command does not tag the rest. Every recipe here is a shell
 command: if this environment cannot execute shell commands, stop and tell the user
