@@ -33,9 +33,11 @@ Prefix every command in a pipeline with both variables, including commands from
 references. Set both variables in the same shell call as the command: every call starts a fresh
 shell, so an earlier `export` is lost. The user does not have to set them, and they
 are never written to an account profile. The two values only name this plugin and
-carry no user data; the CLI's usage analytics read them (for international-site calls
-those events also carry the user's Tripo account id since CLI 0.7.1), and
-`TRIPO_ANALYTICS_ENABLED=0` turns the analytics and that account lookup off. They do
+carry no user data; the CLI's usage analytics read them. Versions below 0.11.0
+collect only international-site calls; 0.11.0 and later also collect China-site
+calls by default for official API calls. Events include the user's Tripo
+account id only when lookup succeeds.
+`TRIPO_ANALYTICS_ENABLED=0` turns analytics and account lookup off. These tags do
 not change the region, the confirmation rules or the stdout output.
 
 First run `tripo --version` and `npm view tripo-cli version`; continue only if

@@ -80,9 +80,11 @@ the first login.
 The skills set `TRIPO_CLIENT_APP=deepseek` and
 `TRIPO_DISTRIBUTION_CHANNEL=deepseek_plugin` on each CLI call to tag usage from this
 plugin; the two values carry no personal data. They are read by the usage analytics of
-`tripo-cli`, which run only for international-site (`ov`) calls and, since version
-0.7.1, include your Tripo account id. Set `TRIPO_ANALYTICS_ENABLED=0` to turn the
-analytics and the account lookup off. The Telemetry section of the
+`tripo-cli`. Versions below 0.11.0 collect only international-site (`ov`) calls;
+0.11.0 and later also collect China-site (`cn`) calls by default for official
+API calls. Events include
+your Tripo account id only when account lookup succeeds. Set
+`TRIPO_ANALYTICS_ENABLED=0` to turn analytics and account lookup off. The Telemetry section of the
 [`tripo-cli` README](https://www.npmjs.com/package/tripo-cli) lists exactly what is sent.
 
 ## Uninstall

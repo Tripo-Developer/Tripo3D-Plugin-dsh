@@ -8,6 +8,10 @@
 - Require the latest `tripo-cli`: compare `tripo --version` with
   `npm view tripo-cli version`; when missing or older, install `tripo-cli@latest`
   with the user's consent. No automatic registry change or older CLI execution.
+- Analytics disclosure: `tripo-cli` 0.11.0 and later also collect China-site (`cn`)
+  calls by default; earlier versions collect `ov` calls only. Events carry the Tripo
+  account id only when lookup succeeds, and `TRIPO_ANALYTICS_ENABLED=0` turns analytics
+  and account lookup off. The rig reference names each CLI version's default rig model.
 - Select H3.1/P1.0/P2.0 explicitly by intended use. P2 is now GA, costs more
   credits than H/P1 and is the P-series default; P1 is used only when the user
   names it or picks it as the lower cost option. Show fees or

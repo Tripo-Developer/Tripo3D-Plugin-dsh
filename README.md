@@ -243,15 +243,12 @@ to an older CLI.
 
 Both skills set `TRIPO_CLIENT_APP=deepseek` and `TRIPO_DISTRIBUTION_CHANNEL=deepseek_plugin` on
 every CLI call. The values carry no user data; the CLI's usage analytics read them, and
-`TRIPO_ANALYTICS_ENABLED=0` turns the analytics off. As of `tripo-cli` 0.8.0:
-
-- analytics run only for `ov` calls, so `cn` usage is never attributed;
-- since 0.7.1, `ov` events also carry the user's Tripo account id, looked up through
-  `POST https://apiplatform.tripo3d.ai/verify` (the opt-out skips that lookup);
-- the CLI recognizes `deepseek` / `deepseek_plugin` alongside the other platforms' values
-  and records any unrecognized value as `unknown`.
-
-DeepSeek usage is therefore attributed for `ov` calls only.
+`TRIPO_ANALYTICS_ENABLED=0` turns analytics and account lookup off. Versions below
+0.11.0 collect only `ov` calls and do not attribute `cn` usage; 0.11.0 and later also
+collect `cn` calls by default for official API calls. Both
+regions use their own collector and account verification endpoint, and include the
+Tripo account id only when lookup succeeds. The CLI recognizes `deepseek` /
+`deepseek_plugin` separately and records unrecognized values as `unknown`.
 
 ## Related
 

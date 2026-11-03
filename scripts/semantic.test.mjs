@@ -60,8 +60,10 @@ test('P2 is the P-series default; P1 only when the user names or picks it', () =
 });
 
 test('processing and image lifecycle match the candidate contract', () => {
-  assert.match(capability, /CLI default `v3\.0-20260909`/);
-  assert.match(capability, /Always pass the model by body type: `model=rig-v3\.0` for `biped`[^\n]*`model=rig-v2\.5` \(`v2\.5-20260210`, the official animal rig\)[^\n]*raw API default is `v1\.0-20240301`/);
+  assert.match(capability, /CLI 0\.8\.0\/0\.9\.0 default to `v3\.0-20260909` for every body type/);
+  assert.match(capability, /CLI 0\.10\.0 and later default to `v2\.5-20260210` for `quadruped` and `v3\.0-20260909` otherwise/);
+  assert.match(capability, /An explicitly selected rig model takes precedence; resolve incompatibilities before submission/);
+  assert.match(capability, /Otherwise, pass the model by body type: `model=rig-v3\.0` for `biped`[^\n]*`model=rig-v2\.5` \(`v2\.5-20260210`, the official animal rig\)[^\n]*raw API default is `v1\.0-20240301`/);
   assert.match(capability, /v2\.5\/v3\.0/);
   assert.match(capability, /avian[\s\S]*others[\s\S]*no presets/);
   assert.match(capability, /fast[\s\S]*v3\.5-20260815/);
@@ -97,6 +99,10 @@ test('CLI dependency and plan disclosure do not promise enforcement', () => {
   assert.match(main, /Requires the latest `tripo-cli`/);
   assert.match(main, /npm install -g tripo-cli@latest\b/);
   assert.doesNotMatch(main, /npx tripo-cli@latest|npm install -g tripo-cli@\d/);
+  for (const text of [main, read('README.md'), read('plugin/README.md')].map(t => t.replace(/\s+/g, ' '))) {
+    assert.match(text, /Versions below 0\.11\.0 collect only [^;]*; 0\.11\.0 and later also collect (?:China-site|`cn`)/);
+    assert.doesNotMatch(text, /run only for (?:`ov`|international-site)|`cn` usage is never attributed|planned 0\.11\.0/);
+  }
   assert.match(main, /not estimated/);
   assert.match(main, /not a server-enforced/);
   assert.match(main, /more credits than H\/P1/);
