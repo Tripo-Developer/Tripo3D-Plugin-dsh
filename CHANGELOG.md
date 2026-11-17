@@ -2,6 +2,15 @@
 
 ## 0.2.0
 
+- Plugin card: `locale/en.json` and `locale/zh.json` give DSH the title and
+  description, and `icon.svg` the icon; DSH previously showed the package name and
+  no icon. Chinese is allowed only in `plugin/locale/zh.json`.
+- `engines.dsh` is `>=0.1.2-rc.1`, tested on DSH 0.1.2-rc.1 and 0.2.2-rc.3; DSH
+  refuses to install the plugin on a release outside the range. The validator checks
+  the icon, both locale files and `engines.dsh`.
+- README: desktop install (**Plugins → Add plugin**), first-time setup, and releases
+  only through the tag workflow so each version carries provenance.
+
 - Correct AR source/final output fields, independent LOD inputs, imported-mesh examples,
   unsupported-parameter confirmation and segment-version guidance.
 

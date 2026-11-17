@@ -38,9 +38,11 @@ This README covers the repository, installation, development, release and design
 ```text
 Tripo3D-Plugin-dsh/
 ├── plugin/                          npm package tripo-dsh, the only distributable
-│   ├── package.json                 dsh.bundle manifest and "files" allowlist
+│   ├── package.json                 dsh.bundle manifest, icon, engines.dsh and "files" allowlist
 │   ├── cordis.patch.yml             bundle layer: inserts one row that loads index.js
 │   ├── index.js                     SkillProvider: reads the SKILL.md files, registers on ctx.skills
+│   ├── icon.svg                     plugin card icon
+│   ├── locale/                      plugin card title and description (en.json, zh.json)
 │   ├── README.md                    npm page for end users
 │   └── skills/
 │       ├── tripo-3d/
@@ -69,6 +71,9 @@ The shared package retains both `cn` and `ov` accounts; ask for the correct regi
 P2 is the P-series default and costs more credits than H/P1, P1 is used only when
 the user names it or picks it as the lower cost option, fees may be **not estimated**,
 and a plan is not a server-enforced authorization gate.
+
+In the desktop app, open **Plugins → Add plugin**, enter `tripo-dsh@latest`, choose
+**Install**, then **Enable now**. From a terminal:
 
 ```bash
 # From npm
@@ -129,6 +134,10 @@ git tag v<version> && git push origin v<version>
 [`publish.yml`](.github/workflows/publish.yml) validates the plugin, checks that the tag matches
 the package version, and runs `npm publish`; npm attaches provenance automatically.
 
+Publish only through this workflow. Provenance links each version to this repository, which
+helps DeepSeek verify the publisher; a version published by hand has none, and the tag run
+then fails because the version already exists.
+
 ## Design notes
 
 ### Why skills-only
@@ -173,6 +182,13 @@ with pnpm and appends it to `dsh.profile.bundles`. On every boot the layers appl
 
 Later layers override rows by `id`, so a user can disable this plugin by overriding the
 `tripo-3d` row in their own `cordis.patch.yml` instead of uninstalling it.
+
+The plugin card comes from package files, not from code. DSH and the plugin market index
+generator (`apps/plugin-market-generator`) read the title and description from
+`meta.title` and `meta.description` in `locale/en.json` and `locale/zh.json`, falling back
+to the package name and `description`, and the icon from the manifest `icon`.
+`engines.dsh` declares the supported DSH releases: installation and profile startup
+refuse a running DSH outside the range, and prereleases take part in the match.
 
 The provider in `index.js` implements `list()` and `get()` of the dsh skills contract:
 
@@ -220,8 +236,15 @@ the skills.
   networks.
 - **Skill files contain no local paths and no leftover names of other agent products**; the text
   is ported from sister projects.
-- **No Chinese characters or full-width punctuation anywhere in the repository.**
+- **No Chinese characters or full-width punctuation anywhere in the repository except
+  `plugin/locale/zh.json`**, the Chinese plugin card text.
 - **The patch row has only `id` and `name`**; the plugin has no config schema.
+- **The icon and both locale files ship in the package.** The icon is an SVG, PNG, JPEG
+  or WebP file inside the package of at most 256 KiB, and each locale file has a
+  non-empty `meta.title` and `meta.description`; DSH drops anything else.
+- **`engines.dsh` starts at the oldest DSH release the plugin was tested on** and has no
+  upper bound. It is `>=0.1.2-rc.1`, tested on 0.1.2-rc.1 and 0.2.2-rc.3; raise it when
+  the plugin starts relying on a newer host contract.
 
 Besides the static checks, the validator imports `plugin/index.js`, drives
 `registerProvider → list() → get()` with a fake `ctx`, and asserts the candidate shape (rank,

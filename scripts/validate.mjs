@@ -82,8 +82,28 @@ check(typeof patchRel === 'string' && patchRel.length > 0, 'dsh.bundle.patch is 
 const patchPath = patchRel ? resolve(PLUGIN, patchRel) : null;
 check(patchPath !== null && existsSync(patchPath), `patch file ${patchRel} exists`);
 
-for (const entry of ['index.js', 'cordis.patch.yml', 'skills']) {
+for (const entry of ['index.js', 'cordis.patch.yml', 'icon.svg', 'locale/*.json', 'skills']) {
   check((pkg.files ?? []).includes(entry), `files includes "${entry}" (complete npm package)`);
+}
+
+// Display fields DSH reads for installed plugins and the plugin market index (deepseek-harness apps/plugin-market-generator).
+check(typeof pkg.engines?.dsh === 'string' && pkg.engines.dsh.trim().length > 0, `engines.dsh "${pkg.engines?.dsh}" declares the supported DSH range (installation refuses a running DSH outside it)`);
+const iconPath = typeof pkg.icon === 'string' ? resolve(PLUGIN, pkg.icon) : null;
+check(
+  iconPath !== null && iconPath.startsWith(PLUGIN + sep) && /\.(svg|png|jpe?g|webp)$/i.test(iconPath) && existsSync(iconPath) && statSync(iconPath).size <= 256 * 1024,
+  `icon "${pkg.icon}" is an SVG, PNG, JPEG or WebP file inside the package, at most 256 KiB`,
+);
+for (const language of ['en', 'zh']) {
+  let meta;
+  try {
+    meta = JSON.parse(readFileSync(join(PLUGIN, 'locale', `${language}.json`), 'utf8')).meta;
+  } catch {
+    meta = undefined;
+  }
+  check(
+    typeof meta?.title === 'string' && meta.title.trim() !== '' && typeof meta?.description === 'string' && meta.description.trim() !== '',
+    `locale/${language}.json has meta.title and meta.description (plugin card title and description)`,
+  );
 }
 
 // Zero dependencies and no scripts: git, tarball and directory installs need no build-script allowance (pnpm >= 10 blocks them).
@@ -225,14 +245,18 @@ check(/npmmirror/.test(tripoSkill), 'tripo-3d keeps the npmmirror hint for China
 // ---- repository text ---------------------------------------------------------
 
 console.log('repository');
-const cjkHits = textFiles(ROOT).flatMap((file) =>
-  readFileSync(file, 'utf8')
-    .split('\n')
-    .flatMap((line, index) => (CJK.test(line) ? [`${relative(ROOT, file)}:${index + 1}`] : [])),
-);
+/** The Chinese plugin card text is the only place Chinese is allowed. */
+const CJK_ALLOWED = new Set(['plugin/locale/zh.json']);
+const cjkHits = textFiles(ROOT)
+  .filter((file) => !CJK_ALLOWED.has(relative(ROOT, file).split(sep).join('/')))
+  .flatMap((file) =>
+    readFileSync(file, 'utf8')
+      .split('\n')
+      .flatMap((line, index) => (CJK.test(line) ? [`${relative(ROOT, file)}:${index + 1}`] : [])),
+  );
 check(
   cjkHits.length === 0,
-  `no Chinese characters or full-width punctuation in the repository${cjkHits.length ? ` (found: ${cjkHits.slice(0, 10).join(', ')}${cjkHits.length > 10 ? ', ...' : ''})` : ''}`,
+  `no Chinese characters or full-width punctuation outside plugin/locale/zh.json${cjkHits.length ? ` (found: ${cjkHits.slice(0, 10).join(', ')}${cjkHits.length > 10 ? ', ...' : ''})` : ''}`,
 );
 
 // ---- summary -----------------------------------------------------------------

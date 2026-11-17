@@ -10,6 +10,11 @@ USDZ/3MF for games, film, AR and 3D printing. Works with both Tripo regions
 
 ## Install
 
+In the DeepSeek Harness desktop app, open **Plugins → Add plugin**, enter
+`tripo-dsh@latest`, choose **Install**, then **Enable now**.
+
+From a terminal:
+
 ```bash
 dsh plugin --profile web add tripo-dsh
 dsh web
@@ -38,6 +43,21 @@ through the plugin itself, so no approval is needed and the notice can be ignore
   `--dry-run`; if it does not, that workflow stops until a supporting build is installed.
 - A Tripo account on either site. You can sign up during the first login, and new
   accounts get free credits.
+
+## First-time setup
+
+The plugin has no settings page; setup happens in your first conversation. Ask for a
+model, for example "make a low-poly treasure chest 3D model", and the agent:
+
+1. Checks `tripo-cli` and, with your consent, installs the latest release.
+2. Asks which Tripo site your account is on (see [Regions](#regions)).
+3. Starts a device login and shows a verification URL and a one-time code. Open the
+   URL, sign in on that site, enter the code and click **Authorize**. The CLI stores
+   the key; never paste a key into the chat.
+4. Runs `tripo doctor` to check the key, network, region and balance, then shows a
+   plan and waits for your confirmation before spending credits.
+
+Later conversations reuse the stored key and skip the login.
 
 ## What it does
 
