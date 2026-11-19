@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.0
+
+- First release of `@vastai/tripo-dsh`. Version numbering restarts at 0.1.0 for the
+  scoped package; its content continues `tripo-dsh` 0.2.0. Existing profiles can
+  migrate by removing `tripo-dsh` and installing the scoped package. The two skill
+  names and the `tripo-3d` bundle row ID are unchanged.
+- Releases are published by GitHub Actions through npm Trusted Publishing, so every
+  version carries provenance. The `0.0.0` placeholder that npm needs before a trusted
+  publisher can be bound is the only version published by hand.
+
 ## 0.2.0
 
 - Plugin card: `locale/en.json` and `locale/zh.json` give DSH the title and

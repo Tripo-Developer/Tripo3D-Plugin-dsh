@@ -1,10 +1,11 @@
 # Validates plugin/ on every push to master, every pull request and every v* tag, and
-# publishes it to npm (tripo-dsh) when a v* tag is pushed. Publishing uses npm trusted
-# publishing (OIDC): no NPM_TOKEN is needed, and npm attaches provenance automatically.
+# publishes it to npm (@vastai/tripo-dsh) when a v* tag is pushed. Publishing uses npm
+# trusted publishing (OIDC): no NPM_TOKEN is needed, and npm attaches provenance automatically.
 #
-# One-time prerequisite: the package was first published by hand (0.1.0), and a maintainer
-# bound this repository and this workflow file name (publish.yml) under npmjs.com package
-# Settings -> Trusted Publisher; otherwise the publish job fails with 401. Keep the file name.
+# One-time prerequisite: the package was created by hand as a 0.0.0 placeholder, and a
+# maintainer bound this repository and this workflow file name (publish.yml) with
+# `npm trust github`, allowing npm publish; otherwise the publish job fails with 401.
+# The binding must complete its first successful publish within two days. Keep the file name.
 #
 # Release: push a v<version> tag whose <version> equals plugin/package.json "version".
 name: Validate and publish

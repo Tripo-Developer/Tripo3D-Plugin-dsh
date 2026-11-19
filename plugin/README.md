@@ -1,4 +1,4 @@
-# tripo-dsh
+# @vastai/tripo-dsh
 
 [Tripo](https://www.tripo3d.ai) 3D generation skills for
 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (dsh).
@@ -11,14 +11,19 @@ USDZ/3MF for games, film, AR and 3D printing. Works with both Tripo regions
 ## Install
 
 In the DeepSeek Harness desktop app, open **Plugins → Add plugin**, enter
-`tripo-dsh@latest`, choose **Install**, then **Enable now**.
+`@vastai/tripo-dsh@latest`, choose **Install**, then **Enable now**.
 
 From a terminal:
 
 ```bash
-dsh plugin --profile web add tripo-dsh
+dsh plugin --profile web add @vastai/tripo-dsh
 dsh web
 ```
+
+To migrate a profile with the legacy `tripo-dsh` package, remove it with
+`dsh plugin --profile web remove tripo-dsh` before installing the scoped package
+in the same profile. The scoped package uses the same two skill names and bundle
+row ID.
 
 Or install straight from the GitHub repository (the package lives in `plugin/`):
 
@@ -28,9 +33,9 @@ dsh plugin --profile web add "github:Tripo-Developer/Tripo3D-Plugin-dsh#path:/pl
 
 For a while after a new release, the pnpm bundled with dsh keeps resolving the previous
 version, because it holds back freshly published packages. To get a new release right
-away, name the version: `dsh plugin --profile web add tripo-dsh@<version>`.
+away, name the version: `dsh plugin --profile web add @vastai/tripo-dsh@<version>`.
 
-pnpm may also print `Agent skills awaiting approval: tripo-dsh`. dsh loads the skills
+pnpm may also print `Agent skills awaiting approval: @vastai/tripo-dsh`. dsh loads the skills
 through the plugin itself, so no approval is needed and the notice can be ignored.
 
 ## Requirements
@@ -110,7 +115,7 @@ your Tripo account id only when account lookup succeeds. Set
 ## Uninstall
 
 ```bash
-dsh plugin --profile web remove tripo-dsh
+dsh plugin --profile web remove @vastai/tripo-dsh
 ```
 
 ## Source & feedback

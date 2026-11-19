@@ -1,4 +1,4 @@
-# Bundle layer for tripo-dsh: inserts one host row. The plugin registers the
+# Bundle layer for @vastai/tripo-dsh: inserts one host row. The plugin registers the
 # bundled skills (tripo-3d, tripo-game-asset) on the global skills registry, so
 # every agent preset can see them.
 #
@@ -7,4 +7,4 @@
 # override or disable the row by id in their profile's own cordis.patch.yml.
 - insert:
     - id: tripo-3d
-      name: 'tripo-dsh'
+      name: '@vastai/tripo-dsh'

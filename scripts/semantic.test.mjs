@@ -9,13 +9,15 @@ const game = read('plugin/skills/tripo-game-asset/SKILL.md');
 const refPath = 'plugin/skills/tripo-3d/references/capability.md';
 const capability = existsSync(resolve(root, refPath)) ? read(refPath) : main;
 const all = [main, game, capability].join('\n');
+const releases = read('CHANGELOG.md').split(/^## /m).slice(1);
 
 test('release metadata and shared regional package stay consistent', () => {
-  assert.equal(JSON.parse(read('plugin/package.json')).version, '0.2.0');
-  const current = read('CHANGELOG.md').split(/^## /m)[1];
-  assert.match(current, /^0\.2\.0\n/);
-  assert.ok(read('README.md').includes('0.2.0'), 'README.md must name the version');
-  for (const [name, text] of [['package', all + read('plugin/README.md')], ['README.md', read('README.md')], ['CHANGELOG 0.2.0', current]]) {
+  const { name, version } = JSON.parse(read('plugin/package.json'));
+  const [current] = releases;
+  assert.equal(name, '@vastai/tripo-dsh');
+  assert.equal(current.split('\n')[0], version);
+  assert.ok(read('README.md').includes(`Version **${version}**`), 'README.md must name the version');
+  for (const [name, text] of [['package', all + read('plugin/README.md')], ['README.md', read('README.md')], [`CHANGELOG ${version}`, current]]) {
     assert.doesNotMatch(text, /local candidate|not yet published|unreleased|unpublished/i, name);
     assert.doesNotMatch(text, /\bPreview\b/, name);
   }
@@ -52,7 +54,7 @@ test('P2 is the P-series default; P1 only when the user names or picks it', () =
   assert.match(flat(game), /an optional lower cost alternative \(30–50 generation credits\), used only when the user names it or picks it/);
   assert.match(flat(read('README.md')), /P1 is used only when the user names it or picks it/);
   assert.match(flat(read('plugin/README.md')), /P1 is used only when you name it or pick it/);
-  assert.match(flat(read('CHANGELOG.md').split(/^## /m)[1]), /P-series default; P1 is used only when the user names it or picks it/);
+  assert.match(flat(releases.find(entry => entry.startsWith('0.2.0\n')) ?? ''), /P-series default; P1 is used only when the user names it or picks it/);
   for (const line of all.split('\n').filter(l => /^tripo (?:generate|make) /.test(l))) {
     assert.ok(!line.includes('--model tripo-p1'), `P1 must not be a generic example: ${line}`);
   }

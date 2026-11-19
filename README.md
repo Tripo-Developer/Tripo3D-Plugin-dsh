@@ -4,7 +4,7 @@ A skills-only plugin for DeepSeek Harness (dsh). It gives the dsh agent Tripo's 
 as two skills; the agent drives [`tripo-cli`](https://www.npmjs.com/package/tripo-cli) through its
 shell tool, and the generated models land directly in the user's project.
 
-npm [`tripo-dsh`](https://www.npmjs.com/package/tripo-dsh) · zero dependencies · pure ESM ·
+npm [`@vastai/tripo-dsh`](https://www.npmjs.com/package/@vastai/tripo-dsh) · zero dependencies · pure ESM ·
 no build step · both Tripo regions (China mainland and international)
 
 ```text
@@ -37,7 +37,7 @@ This README covers the repository, installation, development, release and design
 
 ```text
 Tripo3D-Plugin-dsh/
-├── plugin/                          npm package tripo-dsh, the only distributable
+├── plugin/                          npm package @vastai/tripo-dsh, the only distributable
 │   ├── package.json                 dsh.bundle manifest, icon, engines.dsh and "files" allowlist
 │   ├── cordis.patch.yml             bundle layer: inserts one row that loads index.js
 │   ├── index.js                     SkillProvider: reads the SKILL.md files, registers on ctx.skills
@@ -52,7 +52,7 @@ Tripo3D-Plugin-dsh/
 │       └── tripo-game-asset/
 │           └── SKILL.md             game recipes on top of tripo-3d
 ├── scripts/validate.mjs             static checks plus a provider smoke test
-├── .github/workflows/publish.yml    validates on push and PR; publishes v* tags to npm (OIDC)
+├── .github/workflows/publish.yml    validates on push and PR; releases v* tags to npm
 └── README.md                        this file
 ```
 
@@ -60,7 +60,7 @@ Only `plugin/` is published; its `files` allowlist keeps everything else out of 
 
 ## Install and verify
 
-Version **0.2.0**. The latest `tripo-cli` is required: run `tripo --version` and
+Version **0.1.0**. The latest `tripo-cli` is required: run `tripo --version` and
 compare it with `npm view tripo-cli version`; if it is missing or older, stop and,
 with the user's consent, install `npm install -g tripo-cli@latest`, then check the
 version again.
@@ -72,12 +72,13 @@ P2 is the P-series default and costs more credits than H/P1, P1 is used only whe
 the user names it or picks it as the lower cost option, fees may be **not estimated**,
 and a plan is not a server-enforced authorization gate.
 
-In the desktop app, open **Plugins → Add plugin**, enter `tripo-dsh@latest`, choose
-**Install**, then **Enable now**. From a terminal:
+Once the scoped package is available on npm, open **Plugins → Add plugin** in the
+desktop app, enter `@vastai/tripo-dsh@latest`, choose **Install**, then **Enable now**.
+From a terminal:
 
 ```bash
 # From npm
-dsh plugin --profile web add tripo-dsh
+dsh plugin --profile web add @vastai/tripo-dsh
 
 # From GitHub (the package lives in plugin/; pnpm path: syntax; no build script, so no build allowance)
 dsh plugin --profile web add "github:Tripo-Developer/Tripo3D-Plugin-dsh#path:/plugin"
@@ -86,11 +87,15 @@ dsh plugin --profile web add "github:Tripo-Developer/Tripo3D-Plugin-dsh#path:/pl
 dsh plugin --profile web add /path/to/Tripo3D-Plugin-dsh/plugin
 ```
 
+To migrate from the legacy npm package, first run `dsh plugin --profile web remove tripo-dsh`
+in the profile being migrated, then install the scoped package. Both bundles use the
+`tripo-3d` row ID.
+
 Three checks; the first two spend no credits:
 
 ```bash
 # 1. The configuration layer is composed (no boot)
-dsh --profile web --dump-config          # shows a "# == tripo-dsh" layer
+dsh --profile web --dump-config          # shows a "# == @vastai/tripo-dsh" layer
 
 # 2. Both skills are in the catalog
 dsh web                                  # type / in the input box: tripo-3d and tripo-game-asset
@@ -119,11 +124,19 @@ dsh web                                  # type / in the input box: tripo-3d and
 Do not tag, push or publish without separate user authorization. See `CHANGELOG.md`
 for version changes.
 
-The package [`tripo-dsh`](https://www.npmjs.com/package/tripo-dsh) is published by GitHub Actions
-through npm trusted publishing (OIDC, no token). One-time prerequisite: on npmjs.com, open the
-package's Settings -> Trusted Publisher and bind Organization `Tripo-Developer`, Repository
-`Tripo3D-Plugin-dsh`, Workflow `publish.yml`, Environment empty. Keep at least two package owners
-(`npm owner add <user> tripo-dsh`).
+The package [`@vastai/tripo-dsh`](https://www.npmjs.com/package/@vastai/tripo-dsh) is published by
+GitHub Actions through npm trusted publishing (OIDC, no token). One-time prerequisite: npm can
+bind a trusted publisher only to a package that exists, so a maintainer first publishes a `0.0.0`
+placeholder by hand (`npm publish --access public`), then binds the repository:
+
+```bash
+npm trust github @vastai/tripo-dsh --file publish.yml --repo Tripo-Developer/Tripo3D-Plugin-dsh --allow-publish
+```
+
+This needs npm 11.15 or later and an account with 2FA. Leave the environment empty and keep
+`--allow-publish`: configurations created after 2026-09-03 otherwise allow only `npm stage publish`,
+and the workflow runs `npm publish`. The binding expires unless it completes its first successful
+publish within two days, so push the first tag right after binding.
 
 To release, bump `version` in `plugin/package.json`, commit, and push a matching tag:
 
@@ -136,7 +149,8 @@ the package version, and runs `npm publish`; npm attaches provenance automatical
 
 Publish only through this workflow. Provenance links each version to this repository, which
 helps DeepSeek verify the publisher; a version published by hand has none, and the tag run
-then fails because the version already exists.
+then fails because the version already exists. The `0.0.0` placeholder is the only version
+published by hand.
 
 ## Design notes
 
@@ -166,16 +180,16 @@ order. This package is one bundle:
 
 ```text
 plugin/package.json       "dsh": { "bundle": { "patch": "./cordis.patch.yml" } }   contributes a layer
-plugin/cordis.patch.yml   insert row { id: tripo-3d, name: 'tripo-dsh' }            resolved by package name
+plugin/cordis.patch.yml   insert row { id: tripo-3d, name: '@vastai/tripo-dsh' }    resolved by package name
 plugin/index.js           inject = ['skills']; apply(ctx) registers a SkillProvider on ctx.skills
 ```
 
-`dsh plugin --profile <name> add tripo-dsh` installs the package into `$DSH_HOME/profiles/<name>/`
+`dsh plugin --profile <name> add @vastai/tripo-dsh` installs the package into `$DSH_HOME/profiles/<name>/`
 with pnpm and appends it to `dsh.profile.bundles`. On every boot the layers apply in this order:
 
 1. `@deepseek-ai/dsh-base` (official base layer)
 2. `@deepseek-ai/dsh-web-app` (web profile only)
-3. `tripo-dsh` (this plugin, inserts one row)
+3. `@vastai/tripo-dsh` (this plugin, inserts one row)
 4. the profile's own `cordis.patch.yml` (user overrides)
 5. `$DSH_HOME/cordis.patch.yml` (machine-level overrides)
 6. `--patch <file>` overlays from the command line
