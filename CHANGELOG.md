@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.2.0
+
+- Add a Tripo 3D workspace in the right sidebar. Estimate a retexture, rig, or
+  motion preset for the selected model and review its source, account, and cost
+  in the native DSH confirmation card. The card also works in fullscreen.
+- Compare the original and retextured GLBs from the same viewpoint, inspect the
+  rig's joints, and play or pause an animation. Reopen the original conversation
+  after a restart to find the same model versions and play the saved motion.
+- Add the Tripo asset library, a Tripo 3D Creator preset, and native tools for
+  task lookup, individual and batch quotes, submissions, and session recovery.
+  An optional read-only account connector is available on hosts with MCP account support.
+- Require DSH `>=0.2.2-rc.5`. Ship the built workspace client in the npm package.
+  Use `tripo-dsh-v0.2.0` for this scoped release. The historical `v0.2.0` tag
+  identifies the earlier unscoped `tripo-dsh` package.
+
 ## 0.1.0
 
 - First release of `@vastai/tripo-dsh`. Version numbering restarts at 0.1.0 for the
@@ -10,7 +25,7 @@
   version carries provenance. The `0.0.0` placeholder that npm needs before a trusted
   publisher can be bound is the only version published by hand.
 
-## 0.2.0
+## 0.2.0 (legacy tripo-dsh)
 
 - Plugin card: `locale/en.json` and `locale/zh.json` give DSH the title and
   description, and `icon.svg` the icon; DSH previously showed the package name and

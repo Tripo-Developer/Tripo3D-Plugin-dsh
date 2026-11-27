@@ -160,9 +160,9 @@ path instead.
   `tripo make @<task> --then ...` instead).
 - `--name <name>` records the task under that name, so later commands can say
   `@name` instead of a task id. `--timeout <seconds>` (default 1800) is the watch
-  timeout. `--no-wait` submits and exits with `{"task_id"}` — only for a run the user
-  explicitly wants to leave in the background; resume it with `tripo task watch <id>
-  --download`. `--dry-run` plans and validates without submitting (see next section).
+  timeout. `--no-wait` submits and exits with `{"task_id"}`. Use it for the DSH
+  workspace flow below or when the user explicitly wants a background task.
+  `--dry-run` plans and validates without submitting (see next section).
 
 ### Parameter rules that fail quietly
 
@@ -277,9 +277,53 @@ supported `make` and `model texture` dry runs) need no confirmation.
 Right before submitting `make`, the CLI prints its plan card on stderr (`--quiet`
 hides it); check that what ran matches what you showed, and say so if it differs.
 
+## Generate or resume in the DSH workspace
+
+Use this flow when the user requests the native Tripo workspace or a task card in
+DSH. The native tools support single and batch text-to-GLB generation, plus
+single-model rigging and standard retexturing. Use the regular workflow for
+images, other export formats, or paid processing chains.
+
+For 2-8 text prompts with the same region, account, model, and texture setting,
+call `tripo_batch_estimate` with the ordered `prompts`, `region`, and any
+explicit `profile`, `model`, or `texture`. Show each item's estimate and the
+total. Pass the returned `batchId` to `tripo_batch_submit` for one native
+confirmation of the entire list. Report the outcome in the original order.
+After an interruption, read the same batch receipt using its original
+`batchId` in the original conversation. Use `tripo_batch` to query or
+download known task IDs. Check account task history for any item with an
+unknown outcome before proposing further paid work. Never replay the list.
+
+1. Call `tripo_estimate` with `operation: "generate"`, `"rig"`, or `"texture"`,
+   and the target `region` (`cn` or `ov`). Use the selected asset's exact `taskId`,
+   `region` and `profile`. Omit `profile` for environment credentials.
+   From the right sidebar users can select a body type to rig the displayed model or
+   enter a material description to retexture the source. They can estimate credits,
+   approve in DSH, and preview the resulting GLB in the same conversation.
+   Establish `bodyType` from the request or free rig check. The choices are `biped`,
+   `quadruped`, `hexapod`, `octopod`, `avian`, `serpentine`, `aquatic`, and `others`.
+   Standard retexturing uses PBR off and takes
+   an optional new `prompt`.
+2. Show the selected settings and estimated credits as a list-price estimate.
+   When the user requests submission, pass only the exact `quoteId` to
+   `tripo_submit`. The user confirms the exact quote in a native DSH card. Re-estimate
+   after any change to the request or after the quote expires. Honor a cancellation.
+   If the outcome is unknown, check Tripo task history before any further submission.
+   Do not bypass an unavailable, declined, or uncertain native submission via shell.
+3. A successful `tripo_submit` gives the task's ID, original region and profile,
+   and a queued result card immediately. Report the actual status and point the
+   user to **Check task** or their task ID. Keep all credentials out of chat and cards.
+4. Reopening the original conversation resumes read-only status checks for recent
+   pending tasks recorded by this version. If the user asks to check a card or
+   a task still pending after those checks stop, pass
+   its exact `taskId`, recorded `region` and optional `profile` to `tripo_task`.
+   Set `download: true` for GLB delivery. The tool checks status and downloads only
+   after success. Keep using the same task ID if the download fails. A query, a
+   download, or opening a model never authorizes a generation or processing task.
+
 ## Running `tripo make`
 
-1. **`tripo make` is blocking.** It submits, polls, downloads, then exits. Wait for
+1. **Without `--no-wait`, `tripo make` is blocking.** It submits, polls, downloads, then exits. Wait for
    the process to finish. Do not re-implement polling, do not set a timeout shorter
    than the CLI's own (default 1800s), and do not treat a `task_id` appearing in the
    logs as completion. When the command outlives the shell tool's foreground timeout,

@@ -1,6 +1,6 @@
 # @vastai/tripo-dsh
 
-[Tripo](https://www.tripo3d.ai) 3D generation skills for
+[Tripo](https://www.tripo3d.ai) 3D workspace and skills for
 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (dsh).
 
 Generate textured, rig-ready 3D models from a text prompt or a reference
@@ -10,20 +10,19 @@ USDZ/3MF for games, film, AR and 3D printing. Works with both Tripo regions
 
 ## Install
 
-In the DeepSeek Harness desktop app, open **Plugins → Add plugin**, enter
-`@vastai/tripo-dsh@latest`, choose **Install**, then **Enable now**.
+Use DSH `0.2.2-rc.5` or later. In the desktop app, open **Plugins → Add plugin**,
+enter `@vastai/tripo-dsh@0.2.0`, choose **Install**, then **Enable now**.
 
 From a terminal:
 
 ```bash
-dsh plugin --profile web add @vastai/tripo-dsh
-dsh web
+dsh plugin --profile desktop add @vastai/tripo-dsh@0.2.0
 ```
 
-To migrate a profile with the legacy `tripo-dsh` package, remove it with
-`dsh plugin --profile web remove tripo-dsh` before installing the scoped package
-in the same profile. The scoped package uses the same two skill names and bundle
-row ID.
+Reopen Desktop after a terminal installation. For a Web installation, use
+`--profile web` and start `dsh web`. If the target profile still contains the
+legacy `tripo-dsh`, remove it from that profile before installing the scoped
+package. Both packages use the same skill names and bundle row ID.
 
 Or install straight from the GitHub repository (the package lives in `plugin/`):
 
@@ -51,8 +50,9 @@ through the plugin itself, so no approval is needed and the notice can be ignore
 
 ## First-time setup
 
-The plugin has no settings page; setup happens in your first conversation. Ask for a
-model, for example "make a low-poly treasure chest 3D model", and the agent:
+Choose the default region and export format in the Tripo plugin settings.
+To connect an account, ask for a model in a conversation, for example
+"make a low-poly treasure chest 3D model". The agent:
 
 1. Checks `tripo-cli` and, with your consent, installs the latest release.
 2. Asks which Tripo site your account is on (see [Regions](#regions)).
@@ -82,6 +82,31 @@ Try prompts like:
 - Make a low-poly treasure chest 3D model and export it as FBX for Unity
 - Turn this concept image into a textured 3D model and export it as GLB
 - Generate a 3D-printable knight figurine and export it as an STL file
+- Estimate a wooden crate and a stone arch as two separate GLBs. Show each price
+  and the total before submitting the batch.
+
+A text batch accepts 2-8 prompts for the same account, region, model, and texture
+setting. DSH shows one approval card for the full list. Each submitted item has
+its own task ID and opens in the Tripo workspace. If a submission is interrupted,
+ask for the original batch receipt in the same conversation. Reopening the
+conversation resumes status checks for recently submitted tasks. Choose **Check
+task** on a result card to download the completed GLB.
+
+To compare materials, open a successful model in the right sidebar. Enter a **Material
+description**, choose **Estimate credits**, then **Review and submit** to open the DSH
+confirmation. Once the new GLB is ready, switch between **Original** and **Retextured**
+to compare them from the same angle and zoom. Both versions are available when you reopen
+the Tripo workspace in the original conversation.
+
+To rig a model, select the model or texture version you want to bind. Choose a body type
+under **Rig this model**, estimate the credits, and confirm in DSH. The workspace downloads the
+rigged GLB and lets you inspect the skeleton. It also lists the result when you reopen the
+original conversation. A GLB with embedded animation clips offers playback in the preview.
+
+On a rigged result, open **Add motion** and choose a preset for its body type. Click
+**Estimate credits**, then **Review and submit** to confirm that motion for the selected
+rig. When the new GLB is ready, use **Play** in the sidebar. The original conversation
+keeps the rig and its motion versions together after a restart.
 
 ## Credits
 
@@ -123,6 +148,13 @@ dsh plugin --profile web remove @vastai/tripo-dsh
 Source code and issue tracker:
 [Tripo-Developer/Tripo3D-Plugin-dsh](https://github.com/Tripo-Developer/Tripo3D-Plugin-dsh)
 (the package lives in the `plugin/` directory).
+
+## Workspace sample credits
+
+The animated workspace demo includes the unmodified [Khronos Fox GLB](https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/Fox).
+The model is by PixelMannen (2014), under [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/).
+Rigging and animation are by tomkranis (2014), and glTF conversion is by AsoboStudio and scurest
+(2017), under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 
 ## License
 

@@ -1,0 +1,12 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:workspace": "node scripts/build-workspace.mjs"
+  },
+  "devDependencies": {
+    "@deepseek-ai/schemastery": "3.19.0",
+    "esbuild": "0.28.1",
+    "three": "0.180.0"
+  }
+}

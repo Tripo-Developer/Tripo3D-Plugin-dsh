@@ -1,7 +1,7 @@
 {
   "name": "@vastai/tripo-dsh",
-  "version": "0.1.0",
-  "description": "Tripo 3D skills for DeepSeek Harness — generate engine-ready 3D assets from a text prompt or a reference image via tripo-cli, with texturing, rigging, retopology and format conversion in one pass. Works with both Tripo regions (China mainland and international).",
+  "version": "0.2.0",
+  "description": "Tripo 3D for DeepSeek Harness. Generate models, compare textures, inspect rigs and play animations in the DSH workspace. Includes Tripo CLI skills for both China mainland and international accounts.",
   "keywords": [
     "dsh-plugin",
     "dsh",
@@ -30,18 +30,48 @@
   },
   "type": "module",
   "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./dist/client.js",
+    "./package.json": "./package.json"
+  },
   "icon": "./icon.svg",
   "files": [
     "index.js",
+    "workspace.js",
+    "task.js",
+    "resume.js",
+    "paid.js",
+    "retexture.js",
+    "versions.js",
+    "batch.js",
+    "creator.js",
+    "connector.js",
+    "dist/client.js",
     "cordis.patch.yml",
     "icon.svg",
     "locale/*.json",
     "skills"
   ],
+  "dependencies": {
+    "@deepseek-ai/schemastery": "3.19.0"
+  },
   "engines": {
-    "dsh": ">=0.1.2-rc.1"
+    "dsh": ">=0.2.2-rc.5"
   },
   "dsh": {
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-sidebar-right",
+        "@deepseek-ai/dsh-client-ui-tool",
+        "@deepseek-ai/dsh-client-ui-workspace",
+        "@deepseek-ai/dsh-client-ui-sidebar-documentpreview",
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-ui-plugin-manager",
+        "@deepseek-ai/dsh-client-ui-conversation"
+      ]
+    },
     "bundle": {
       "patch": "./cordis.patch.yml"
     }

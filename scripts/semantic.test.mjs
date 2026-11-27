@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { apply } from '../plugin/index.js';
+import { readDemoTaskIds } from '../plugin/workspace.js';
 const root = resolve(import.meta.dirname, '..');
 const read = p => readFileSync(resolve(root, p), 'utf8');
 const main = read('plugin/skills/tripo-3d/SKILL.md');
@@ -10,6 +12,26 @@ const refPath = 'plugin/skills/tripo-3d/references/capability.md';
 const capability = existsSync(resolve(root, refPath)) ? read(refPath) : main;
 const all = [main, game, capability].join('\n');
 const releases = read('CHANGELOG.md').split(/^## /m).slice(1);
+
+test('workspace demo is opt-in and renders only recognised sample task IDs', async () => {
+  const tools = [];
+  const context = {
+    skills: { registerProvider() {} },
+    inject(names, register) {
+      if (names.includes('tools')) register({ tools: { register(tool) { tools.push(tool); } } });
+    },
+  };
+  apply(context);
+  const standard = ['tripo_task', 'tripo_batch', 'tripo_estimate', 'tripo_submit', 'tripo_batch_estimate', 'tripo_batch_submit', 'tripo_connection'];
+  assert.deepEqual(tools.map(({ name }) => name), standard);
+  tools.length = 0;
+  apply(context, { workspaceDemo: true });
+  assert.deepEqual(tools.map(({ name }) => name), [...standard, 'tripo_workspace_demo']);
+  const tool = tools.at(-1);
+  const ids = await tool.execute({});
+  assert.deepEqual(readDemoTaskIds(tool.output.render({}, ids)), ['demo-mesh-a', 'demo-mesh-b']);
+  assert.deepEqual(readDemoTaskIds([{ type: 'text', text: '["demo-mesh-a","demo-mesh-a","file:///tmp/x.glb"]' }]), ['demo-mesh-a']);
+});
 
 test('release metadata and shared regional package stay consistent', () => {
   const { name, version } = JSON.parse(read('plugin/package.json'));
@@ -54,7 +76,7 @@ test('P2 is the P-series default; P1 only when the user names or picks it', () =
   assert.match(flat(game), /an optional lower cost alternative \(30–50 generation credits\), used only when the user names it or picks it/);
   assert.match(flat(read('README.md')), /P1 is used only when the user names it or picks it/);
   assert.match(flat(read('plugin/README.md')), /P1 is used only when you name it or pick it/);
-  assert.match(flat(releases.find(entry => entry.startsWith('0.2.0\n')) ?? ''), /P-series default; P1 is used only when the user names it or picks it/);
+  assert.match(flat(releases.find(entry => entry.startsWith('0.2.0 (legacy tripo-dsh)\n')) ?? ''), /P-series default; P1 is used only when the user names it or picks it/);
   for (const line of all.split('\n').filter(l => /^tripo (?:generate|make) /.test(l))) {
     assert.ok(!line.includes('--model tripo-p1'), `P1 must not be a generic example: ${line}`);
   }

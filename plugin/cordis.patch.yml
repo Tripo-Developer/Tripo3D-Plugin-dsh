@@ -1,6 +1,5 @@
-# Bundle layer for @vastai/tripo-dsh: inserts one host row. The plugin registers the
-# bundled skills (tripo-3d, tripo-game-asset) on the global skills registry, so
-# every agent preset can see them.
+# Bundle layer for @vastai/tripo-dsh. The host row registers Tripo tools and
+# skills. The preset adds a tailored persona and the tools those skills need.
 #
 # The row references the package name rather than a relative path, so Node
 # resolution finds the installed code in the profile's node_modules. Users can
@@ -8,3 +7,50 @@
 - insert:
     - id: tripo-3d
       name: '@vastai/tripo-dsh'
+    - id: preset-tripo-3d-creator
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: tripo-3d-creator
+        name: Tripo 3D Creator
+        description: Create game characters and scene props with Tripo 3D.
+        order: 10
+        plugins:
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              prefix: >-
+                You are a Tripo 3D creation assistant. Load the tripo-3d skill
+                for generation or processing, and tripo-game-asset for game
+                characters and scene props. Use the user's requested region for
+                new tasks or the Tripo preference ({{tripo_default_region}}).
+                When the preference is auto, use tripo_connection to confirm
+                the active region or ask the user if it cannot be verified.
+                Never switch accounts or move an existing task to a different
+                region or CLI profile by default.
+              suffix: >-
+                Keep a GLB for the DSH workspace and use
+                {{tripo_export_format}} as the final export preference unless
+                the user asks for another format. Use tripo_estimate and
+                tripo_submit for single operations. For a batch of text prompts,
+                use tripo_batch_estimate and tripo_batch_submit to obtain one
+                confirmation for the full list. Follow the skill's cost
+                and approval workflow for other operations, and wait for the
+                user to approve every paid step. For a submitted task use
+                tripo_task with its original task ID, region and CLI profile.
+                Report the task ID, status and any downloaded file paths.
+          - id: tool-skill
+            name: '@deepseek-ai/dsh-tool-skill'
+          - id: tool-bash
+            name: '@deepseek-ai/dsh-tool-bash'
+            disabled: !!js process.platform === 'win32'
+          - id: tool-pwsh
+            name: '@deepseek-ai/dsh-tool-pwsh'
+            disabled: !!js process.platform !== 'win32'
+          - id: tool-fs
+            name: '@deepseek-ai/dsh-tool-fs'
+            config:
+              read: true
+              readImage: true
+              write: false
+              edit: false
+              applyPatch: false

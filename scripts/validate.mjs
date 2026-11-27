@@ -2,7 +2,7 @@
 /**
  * Pre-publish validation: checks plugin/ against the DSH bundle conventions
  * (deepseek-harness docs/user/develop/basic/publish.md) and this repository's
- * skills-only constraints. Zero dependencies, Node.js >= 18.
+ * package constraints.
  *
  * Besides the static checks, it imports plugin/index.js and drives
  * registerProvider → list() → get() with a fake ctx, verifying the provider
@@ -25,7 +25,7 @@ const SKILL_MAX_LINES = 500;
 const ATTRIBUTION = ['TRIPO_CLIENT_APP=deepseek', 'TRIPO_DISTRIBUTION_CHANNEL=deepseek_plugin'];
 /** Han characters, CJK symbols and punctuation, and full-width forms. */
 const CJK = /[\p{Script=Han}\u3000-\u303F\uFF00-\uFFEF]/u;
-const TEXT_EXTENSIONS = new Set(['.md', '.js', '.mjs', '.json', '.yml', '.yaml']);
+const TEXT_EXTENSIONS = new Set(['.md', '.js', '.jsx', '.mjs', '.json', '.yml', '.yaml']);
 
 let failures = 0;
 let checks = 0;
@@ -40,12 +40,12 @@ const fail = (msg) => {
 };
 const check = (cond, msg) => (cond ? ok(msg) : fail(msg));
 
-/** Text files under dir, skipping node_modules and dot-directories other than .github. */
+/** Source text files under dir, excluding dependencies and generated bundles. */
 function textFiles(dir) {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const path = join(dir, entry.name);
     if (entry.isDirectory()) {
-      const skip = entry.name === 'node_modules' || (entry.name.startsWith('.') && entry.name !== '.github');
+      const skip = entry.name === 'node_modules' || entry.name === 'dist' || (entry.name.startsWith('.') && entry.name !== '.github');
       return skip ? [] : textFiles(path);
     }
     return TEXT_EXTENSIONS.has(extname(entry.name)) || entry.name === '.gitignore' ? [path] : [];
@@ -82,7 +82,7 @@ check(typeof patchRel === 'string' && patchRel.length > 0, 'dsh.bundle.patch is 
 const patchPath = patchRel ? resolve(PLUGIN, patchRel) : null;
 check(patchPath !== null && existsSync(patchPath), `patch file ${patchRel} exists`);
 
-for (const entry of ['index.js', 'cordis.patch.yml', 'icon.svg', 'locale/*.json', 'skills']) {
+for (const entry of ['index.js', 'workspace.js', 'task.js', 'resume.js', 'paid.js', 'retexture.js', 'versions.js', 'batch.js', 'creator.js', 'connector.js', 'dist/client.js', 'cordis.patch.yml', 'icon.svg', 'locale/*.json', 'skills']) {
   check((pkg.files ?? []).includes(entry), `files includes "${entry}" (complete npm package)`);
 }
 
@@ -106,9 +106,10 @@ for (const language of ['en', 'zh']) {
   );
 }
 
-// Zero dependencies and no scripts: git, tarball and directory installs need no build-script allowance (pnpm >= 10 blocks them).
-for (const field of ['dependencies', 'devDependencies', 'peerDependencies', 'scripts']) {
-  check(!(field in pkg) || Object.keys(pkg[field]).length === 0, `no "${field}" (zero dependencies, no install-time scripts)`);
+// The Host-compatible settings schema is the only runtime dependency.
+check(JSON.stringify(pkg.dependencies) === JSON.stringify({ '@deepseek-ai/schemastery': '3.19.0' }), 'only the pinned Host settings schema is a runtime dependency');
+for (const field of ['devDependencies', 'peerDependencies', 'scripts']) {
+  check(!(field in pkg) || Object.keys(pkg[field]).length === 0, `no "${field}" (no install-time scripts)`);
 }
 
 // ---- cordis.patch.yml --------------------------------------------------------
@@ -130,7 +131,11 @@ check(Array.isArray(mod.inject) && mod.inject.includes('skills'), 'inject declar
 check(typeof mod.apply === 'function', 'exports an apply function');
 
 const registered = [];
+const registeredTools = [];
 const fakeCtx = {
+  inject(names, apply) {
+    if (names.includes('tools')) apply({ tools: { register(tool) { registeredTools.push(tool.name); } } });
+  },
   skills: {
     registerProvider(create) {
       registered.push(create({ signal: new AbortController().signal, invalidate() {} }));
@@ -140,6 +145,10 @@ const fakeCtx = {
 };
 mod.apply(fakeCtx);
 check(registered.length === 1, 'apply registers exactly one skill provider');
+check(registeredTools.includes('tripo_task'), 'apply registers the read-only task tool');
+check(registeredTools.includes('tripo_estimate') && registeredTools.includes('tripo_submit'), 'apply registers the estimate and confirmed submission tools');
+check(registeredTools.includes('tripo_batch') && registeredTools.includes('tripo_connection'), 'apply registers the batch and connection tools');
+check(registeredTools.includes('tripo_batch_estimate') && registeredTools.includes('tripo_batch_submit'), 'apply registers batch generation estimates and confirmed submissions');
 const provider = registered[0] ?? {};
 check(typeof provider.name === 'string' && provider.name.length > 0, `provider name "${provider.name}"`);
 

@@ -1,11 +1,11 @@
 # Tripo 3D for DeepSeek Harness
 
-A skills-only plugin for DeepSeek Harness (dsh). It gives the dsh agent Tripo's 3D generation
-as two skills; the agent drives [`tripo-cli`](https://www.npmjs.com/package/tripo-cli) through its
-shell tool, and the generated models land directly in the user's project.
+Create and preview Tripo 3D assets inside DeepSeek Harness (dsh). Two bundled skills guide
+the agent through generation and processing. Native DSH tools use `tripo-cli` to estimate,
+submit, and retrieve tasks, and the Tripo workspace previews the resulting GLBs.
 
-npm [`@vastai/tripo-dsh`](https://www.npmjs.com/package/@vastai/tripo-dsh) · zero dependencies · pure ESM ·
-no build step · both Tripo regions (China mainland and international)
+npm [`@vastai/tripo-dsh`](https://www.npmjs.com/package/@vastai/tripo-dsh) · no install-time scripts ·
+both Tripo regions (China mainland and international)
 
 ```text
   user                  DeepSeek Harness (dsh)                  this plugin              Tripo
@@ -39,8 +39,8 @@ This README covers the repository, installation, development, release and design
 Tripo3D-Plugin-dsh/
 ├── plugin/                          npm package @vastai/tripo-dsh, the only distributable
 │   ├── package.json                 dsh.bundle manifest, icon, engines.dsh and "files" allowlist
-│   ├── cordis.patch.yml             bundle layer: inserts one row that loads index.js
-│   ├── index.js                     SkillProvider: reads the SKILL.md files, registers on ctx.skills
+│   ├── cordis.patch.yml             bundle layer for the plugin and the Tripo 3D Creator preset
+│   ├── index.js                     registers the skills and native tools
 │   ├── icon.svg                     plugin card icon
 │   ├── locale/                      plugin card title and description (en.json, zh.json)
 │   ├── README.md                    npm page for end users
@@ -52,7 +52,7 @@ Tripo3D-Plugin-dsh/
 │       └── tripo-game-asset/
 │           └── SKILL.md             game recipes on top of tripo-3d
 ├── scripts/validate.mjs             static checks plus a provider smoke test
-├── .github/workflows/publish.yml    validates on push and PR; releases v* tags to npm
+├── .github/workflows/publish.yml    validates changes and publishes release tags to npm
 └── README.md                        this file
 ```
 
@@ -60,7 +60,7 @@ Only `plugin/` is published; its `files` allowlist keeps everything else out of 
 
 ## Install and verify
 
-Version **0.1.0**. The latest `tripo-cli` is required: run `tripo --version` and
+Version **0.2.0** requires DSH `>=0.2.2-rc.5`. The latest `tripo-cli` is required: run `tripo --version` and
 compare it with `npm view tripo-cli version`; if it is missing or older, stop and,
 with the user's consent, install `npm install -g tripo-cli@latest`, then check the
 version again.
@@ -72,18 +72,22 @@ P2 is the P-series default and costs more credits than H/P1, P1 is used only whe
 the user names it or picks it as the lower cost option, fees may be **not estimated**,
 and a plan is not a server-enforced authorization gate.
 
-Once the scoped package is available on npm, open **Plugins → Add plugin** in the
-desktop app, enter `@vastai/tripo-dsh@latest`, choose **Install**, then **Enable now**.
-From a terminal:
+In the desktop app, open **Plugins → Add plugin**, enter `@vastai/tripo-dsh@0.2.0`,
+choose **Install**, then **Enable now**. The equivalent Desktop profile command is:
 
 ```bash
-# From npm
-dsh plugin --profile web add @vastai/tripo-dsh
+dsh plugin --profile desktop add @vastai/tripo-dsh@0.2.0
+```
 
-# From GitHub (the package lives in plugin/; pnpm path: syntax; no build script, so no build allowance)
+For the Web profile:
+
+```bash
+dsh plugin --profile web add @vastai/tripo-dsh@0.2.0
+
+# From GitHub for the bundled skills (the workspace client requires a built package)
 dsh plugin --profile web add "github:Tripo-Developer/Tripo3D-Plugin-dsh#path:/plugin"
 
-# From a local checkout (development; pnpm link, so skill edits apply immediately)
+# From a local checkout after building the workspace (see Development)
 dsh plugin --profile web add /path/to/Tripo3D-Plugin-dsh/plugin
 ```
 
@@ -111,13 +115,117 @@ dsh web                                  # type / in the input box: tripo-3d and
 
 1. Edit files under `plugin/`. Agent behavior lives in the skills: change `SKILL.md` or
    `references/capability.md`, not this README.
-2. Run `node scripts/validate.mjs` and `node --test scripts/semantic.test.mjs`
-   (Node.js 20.11+ for the semantic suite, nothing to install). CI runs the validation
-   script on every push to `master`, every pull request and every tag.
+2. Run `npm ci` and `npm run build:workspace` to build the right-sidebar client.
+   Run `node scripts/validate.mjs` and `node --test scripts/*.test.mjs`.
+   The published package includes `plugin/dist/client.js` and installs without a build step.
 3. Try the change in dsh from a local checkout. Skill edits apply immediately; restart dsh after
    changing `cordis.patch.yml` or `package.json`.
 4. When `tripo-cli` changes a flag or behavior the skills rely on, update the skills and bump
    `version` in `plugin/package.json` in the same change.
+
+### Workspace smoke test
+
+On DSH Desktop `0.2.2-rc.5`, the Tripo 3D button in a conversation opens the right sidebar.
+For a real task, ask for a single text-to-GLB generation in the Tripo workspace. The native
+`tripo_estimate` tool returns the request and its list-price estimate. `tripo_submit` asks
+for explicit approval in DSH and uses the approved quote at most once. Once its result card
+shows a task ID, restart Desktop and return to that conversation. DSH resumes read-only status
+checks for recent pending tasks recorded by this version. The account and region must still
+match. Expand the tool results or open the Tripo workspace to see their status. To download the
+finished GLB, click **Check task** and send the draft. Open the matching result,
+enter Play mode, and try WASD, Shift and Space. **Use this model in chat** inserts the same
+task ID into the draft. To rig the selected model, choose its body type in the right sidebar,
+estimate the credits, and review the native DSH confirmation. After delivery, open the rigged
+GLB in the same workspace. **Show skeleton** overlays the joints on the mesh. The preview
+also reports the number of joints and offers playback for animation clips included in the file.
+Reopen the original conversation after restarting Desktop to find the source and rigged result.
+
+Select the rigged version and open **Add motion**. Choose a **Motion preset** for its body type,
+then click **Estimate credits**. Changing the motion clears the estimate. **Review and submit**
+opens the native DSH confirmation for one motion on that rig. When the animated GLB is ready,
+click **Play** in the right sidebar. After restarting Desktop, reopen the original conversation
+and select **Motion · Walk** (or the motion you chose) under **Model version** to play it again.
+
+For a successful source model, enter a **Material description** in the right sidebar and click
+**Estimate credits**. Review the source, account, and price, then click **Review and submit** and
+answer the native DSH confirmation. Editing the description requires a new estimate.
+After delivery, orbit or zoom and switch between **Original** and **Retextured** using the same
+viewpoint. Reopen the original conversation and its Tripo workspace after restarting Desktop
+to find both versions. **Refresh versions** retries a pending status check or download.
+
+To check fullscreen approvals, expand the right sidebar and open **Review and submit** for a
+rig quote, a motion quote, and a retexture quote. For each operation, select **Cancel** and submit the answer.
+The native card should close with the same tab still fullscreen and no Tripo task created.
+Using a mock Tripo endpoint, repeat with **Submit Tripo task** and check that each approved
+quote sends exactly one request for the selected model.
+
+Recovery checks up to eight recent tasks and stops after a bounded polling window.
+For older tasks, tasks recorded before this version, or tasks that outlast the
+window, **Check task** uses the original ID. A model download is a separate action.
+
+### Asset library, creator, and batch tools
+
+**My Tripo assets** in the left sidebar reads downloaded GLB receipts from saved DSH
+conversations. Recent projects checks the six newest conversations. Pick a source
+conversation to browse its older results. Opening an asset switches to its source
+conversation and selects its exact task in the right workspace. Clicking a `.glb` in the
+native DSH file tree or an artifact opens the same viewer in the document tab. File
+preview uses DSH's session file permissions and supports up to 128 MiB.
+
+Choose **Tripo 3D Creator** for a new session, or start with **Game character** or
+**Scene prop** from the asset library. Open the Tripo plugin details to change its
+default region or final export preference. The connection check reads the CLI
+account and region. For an existing task, the original CLI profile and region still
+determine access.
+
+For several existing tasks, ask DSH to use `tripo_batch` with
+`{ taskIds: [id1, id2], region: "cn", profile: "my-cn", download: true }`. Each
+batch accepts at most eight task UUIDs from one account and returns one result per
+unique ID. The same tool is available in an installed DSH SDK session via
+`session/prompt` and `session/wait`. A batch checks existing tasks and optionally
+downloads successful GLBs.
+
+For new models, ask for a batch of 2-8 text prompts with the same account, region,
+model, and texture setting. `tripo_batch_estimate` returns an ordered quote with
+per-item estimates and the total. `tripo_batch_submit` accepts its `batchId`
+and presents one approval for the list. Use each returned task ID to check that
+model or download its GLB. After an interruption, ask for the same batch receipt
+in its original conversation and check uncertain items against Tripo task history.
+
+### Optional remote MCP account
+
+The remote account adapter is off by default. Desktop `0.2.2-rc.5` continues to use
+the CLI profile. A DSH Host with the MCP account services introduced in
+`0.2.3-alpha.1` can opt in to one region with `remoteConnectorRegion: cn` or
+`remoteConnectorRegion: ov` on the `tripo-3d` plugin row. The Host owns the OAuth
+login and its regional credentials. Its grant is independent of the CLI profile.
+The adapter admits balance, usage, and task-status tools. Paid work in the Tripo
+workspace continues through the existing native approval tools. With DSH
+`0.2.3-alpha.2`, a local test issuer exercised PKCE sign-in, refresh,
+region switching, sign-out, and enforcement of the read-only tool list.
+Both public regional endpoints expose OAuth discovery metadata. Sign-in and
+refresh with a live Tripo account still require end-to-end verification.
+
+To try the mock chat-to-sidebar flow, build the client, copy `plugin/` to a temporary directory, and add
+this config under the `tripo-3d` row in that copy's `cordis.patch.yml`.
+
+```yaml
+      config:
+        workspaceDemo: true
+```
+
+Use only one Tripo bundle in the test profile because both packages register the same skill
+provider. Install the temporary directory in DSH, enable it, and restart Desktop to load the client.
+In a fresh conversation ask for the Tripo workspace demo using `tripo_workspace_demo`. Expand the
+completed turn and its tool calls to find the result card. Open both results by their task IDs, close
+the tab, and use the conversation header to reopen the last selected task. A different conversation
+starts empty. Task A uses the static Meshopt cube from the Tripo Hermes plugin. Task B uses the
+Khronos Fox sample with Survey, Walk, and Run clips. Check the first paused pose, play and pause a
+clip, switch clips during playback, and turn off Loop to check that playback stops at the end.
+Enter Play mode on Fox to test WASD movement, Shift sprinting, and a Space jump. Press Escape with
+the canvas focused to restore the ordinary animation preview.
+The two tasks are simulated and make no Tripo API calls. See the
+[distributed sample credits](plugin/README.md#workspace-sample-credits).
 
 ## Release
 
@@ -138,14 +246,23 @@ This needs npm 11.15 or later and an account with 2FA. Leave the environment emp
 and the workflow runs `npm publish`. The binding expires unless it completes its first successful
 publish within two days, so push the first tag right after binding.
 
-To release, bump `version` in `plugin/package.json`, commit, and push a matching tag:
+For scoped releases, commit the version in `plugin/package.json` and push a matching
+`tripo-dsh-v<version>` tag on the verified release commit. The older `v0.2.0` tag
+belongs to the unscoped `tripo-dsh` package. For `@vastai/tripo-dsh@0.2.0` use:
 
 ```bash
-git tag v<version> && git push origin v<version>
+git tag tripo-dsh-v0.2.0
+git push origin tripo-dsh-v0.2.0
 ```
 
 [`publish.yml`](.github/workflows/publish.yml) validates the plugin, checks that the tag matches
 the package version, and runs `npm publish`; npm attaches provenance automatically.
+
+Reviewers can find the [npm package](https://www.npmjs.com/package/@vastai/tripo-dsh),
+the [source repository](https://github.com/Tripo-Developer/Tripo3D-Plugin-dsh), and the
+[public provenance record for scoped version 0.1.0](https://search.sigstore.dev/?logIndex=3999179714).
+After publishing a new version, open that version's provenance details on npm and share its
+own **Public Ledger** link with reviewers.
 
 Publish only through this workflow. Provenance links each version to this repository, which
 helps DeepSeek verify the publisher; a version published by hand has none, and the tag run
@@ -154,24 +271,15 @@ published by hand.
 
 ## Design notes
 
-### Why skills-only
-
-A dsh plugin can register tools, connect MCP servers or add hooks. This plugin registers skills
-only, because the work splits cleanly:
+### Skills and native tools
 
 - `tripo-cli` owns the API contract: auth, region detection, task polling, downloads, exit codes
   and the `--json` stdout line. The skills require the latest CLI
   release; they must not bootstrap an older registry release.
 - The skills own the operating manual: when to use Tripo, what to run first, how to branch on
   results, how to spend the user's credits and how to present the result.
-- dsh puts the skills in the model-visible catalog and provides the shell tool and sandbox.
-
-As a result the plugin has no API code: when the CLI contract changes, update the skill text and
-bump the version. The agent uses the shell tool it already has, so no tool schema is added to
-every request, and a skill body enters the context only when the model selects that skill. The
-CLI's exit codes and final JSON stdout line are the protocol. The cost is that login and
-generation need a shell and network access, so every skill tells the agent to report honestly
-when either is unavailable.
+- DSH hosts the skill catalog, the shell sandbox, approval cards and session history.
+  The native Tripo tools use CLI results to populate task cards and the right workspace.
 
 ### How dsh loads the plugin
 
@@ -228,12 +336,10 @@ the skills.
 
 `scripts/validate.mjs` enforces these; run it after every change.
 
-- **No `dependencies`, `devDependencies`, `peerDependencies` or `scripts` in `package.json`.** A git
-  install fetches sources and runs no build; a `prepare` script would hit pnpm 10's build-permission
-  gate and ask users to trust install-time code. With zero dependencies, npm, tarball, directory
-  and git installs all work without any permission.
-- **Pure ESM, `main: index.js`, no TypeScript.** Without build output there is no "source installed
-  but `lib/` missing" failure.
+- **The pinned DSH settings schema is the only runtime dependency.** The package
+  contains no `devDependencies`, `peerDependencies` or lifecycle scripts.
+  The root development dependencies build the workspace before packaging. The skill provider keeps
+  its ESM `main: index.js` entry and Git source installs require no lifecycle scripts.
 - **`rank` is the literal 600**, not an import from `@deepseek-ai/dsh-skill`, to stay
   dependency-free. A change of `BUNDLED_SKILL_RANK` would be a dsh breaking change; sync it by hand.
 - **Skill names are kebab-case and equal their directory names**; the dsh registry fails fast on
@@ -252,13 +358,13 @@ the skills.
   is ported from sister projects.
 - **No Chinese characters or full-width punctuation anywhere in the repository except
   `plugin/locale/zh.json`**, the Chinese plugin card text.
-- **The patch row has only `id` and `name`**; the plugin has no config schema.
+- **The distributed patch row has only `id` and `name`.** The smoke-test copy can opt into simulated tasks.
 - **The icon and both locale files ship in the package.** The icon is an SVG, PNG, JPEG
   or WebP file inside the package of at most 256 KiB, and each locale file has a
   non-empty `meta.title` and `meta.description`; DSH drops anything else.
-- **`engines.dsh` starts at the oldest DSH release the plugin was tested on** and has no
-  upper bound. It is `>=0.1.2-rc.1`, tested on 0.1.2-rc.1 and 0.2.2-rc.3; raise it when
-  the plugin starts relying on a newer host contract.
+- **`engines.dsh` starts at the oldest tested host for the current workspace.**
+  The minimum is `0.2.2-rc.5`, the Desktop release used to verify approval,
+  animation playback and recovery after restart.
 
 Besides the static checks, the validator imports `plugin/index.js`, drives
 `registerProvider → list() → get()` with a fake `ctx`, and asserts the candidate shape (rank,

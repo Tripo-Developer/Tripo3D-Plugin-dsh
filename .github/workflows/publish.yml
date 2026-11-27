@@ -1,5 +1,5 @@
-# Validates plugin/ on every push to master, every pull request and every v* tag, and
-# publishes it to npm (@vastai/tripo-dsh) when a v* tag is pushed. Publishing uses npm
+# Validates plugin/ on every push to master, every pull request and every release tag, and
+# publishes it to npm (@vastai/tripo-dsh) when a release tag is pushed. Publishing uses npm
 # trusted publishing (OIDC): no NPM_TOKEN is needed, and npm attaches provenance automatically.
 #
 # One-time prerequisite: the package was created by hand as a 0.0.0 placeholder, and a
@@ -7,13 +7,13 @@
 # `npm trust github`, allowing npm publish; otherwise the publish job fails with 401.
 # The binding must complete its first successful publish within two days. Keep the file name.
 #
-# Release: push a v<version> tag whose <version> equals plugin/package.json "version".
+# Release: push tripo-dsh-v<version> or v<version>, matching plugin/package.json "version".
 name: Validate and publish
 
 on:
   push:
     branches: [master]
-    tags: ['v*']
+    tags: ['v*', 'tripo-dsh-v*']
   pull_request:
 
 permissions:
@@ -29,8 +29,12 @@ jobs:
         with:
           node-version: 24
 
+      - run: npm ci && npm run build:workspace
+
       - name: Validate plugin
-        run: node scripts/validate.mjs
+        run: |
+          node --test scripts/*.test.mjs
+          node scripts/validate.mjs
 
       - name: List package contents
         working-directory: plugin
@@ -38,7 +42,7 @@ jobs:
 
   publish:
     needs: validate
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/tripo-dsh-v')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -57,11 +61,17 @@ jobs:
       - name: Check tag matches package.json version
         run: |
           pkg_version=$(node -p "require('./plugin/package.json').version")
-          tag_version="${GITHUB_REF_NAME#v}"
+          case "${GITHUB_REF_NAME:-}" in
+            tripo-dsh-v*) tag_version="${GITHUB_REF_NAME#tripo-dsh-v}" ;;
+            v*) tag_version="${GITHUB_REF_NAME#v}" ;;
+            *) echo "unrecognized release tag: ${GITHUB_REF_NAME:-}" >&2; exit 1 ;;
+          esac
           if [ "$pkg_version" != "$tag_version" ]; then
-            echo "tag v$tag_version does not match plugin/package.json version $pkg_version" >&2
+            echo "tag $GITHUB_REF_NAME does not match plugin/package.json version $pkg_version" >&2
             exit 1
           fi
+
+      - run: npm ci && npm run build:workspace
 
       - name: Publish
         working-directory: plugin

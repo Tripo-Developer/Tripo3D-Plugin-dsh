@@ -3,14 +3,23 @@
  *
  * Registers the bundled `tripo-3d` and `tripo-game-asset` skills on the global
  * `ctx.skills` registry, following the `@deepseek-ai/dsh-skill-badge` pattern.
- * The skills instruct the agent to drive `tripo-cli` through the shell tool;
- * this module carries no API logic of its own and has zero dependencies, so
+ * The skills and workspace task tools use `tripo-cli` through the host shell;
+ * this module carries no API logic of its own, so
  * the package installs from npm, a tarball, a directory or git without any
  * build step or build-script allowance.
  */
 
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
+import { registerBatchTool } from './batch.js'
+import { registerRemoteConnector } from './connector.js'
+import { registerCreatorConnection, registerCreatorPrompt } from './creator.js'
+import { registerPaidTools } from './paid.js'
+import { registerRetextureRemote } from './retexture.js'
+import { registerTaskRecovery, registerTaskRecoveryRemote } from './resume.js'
+import { registerTaskTool } from './task.js'
+import { registerWorkspaceDemo } from './workspace.js'
+export { Config } from './creator.js'
 
 const PROVIDER_NAME = 'tripo-3d'
 /** Mirrors BUNDLED_SKILL_RANK in @deepseek-ai/dsh-skill: the standard rank for packaged skill providers. */
@@ -83,6 +92,20 @@ export const name = 'tripo-3d'
 export const inject = ['skills']
 
 /** Register the bundled Tripo skill provider on `ctx.skills`. */
-export function apply(ctx) {
+export function apply(ctx, config) {
   ctx.skills.registerProvider(() => provider)
+  ctx.inject(['tools', 'shell', 'shellEnv', 'sandboxPolicy', 'workingDirectory'], registerTaskTool)
+  ctx.inject(['tools', 'shell', 'shellEnv', 'sandboxPolicy', 'workingDirectory'], registerBatchTool)
+  ctx.inject(['tools', 'shell', 'shellEnv', 'sandboxPolicy', 'userQuestions'], registerPaidTools)
+  ctx.inject(['typert', 'sessionController', 'shell', 'shellEnv', 'sandboxPolicy', 'workingDirectory', 'userQuestions'], registerRetextureRemote)
+  ctx.inject(['agents', 'shell', 'shellEnv', 'sandboxPolicy', 'workingDirectory'], scope => {
+    const recovery = registerTaskRecovery(scope)
+    scope.inject(['typert', 'sessionController'], remote => registerTaskRecoveryRemote(remote, recovery))
+  })
+  ctx.inject(['systemPrompt'], scope => registerCreatorPrompt(scope, config))
+  ctx.inject(['tools', 'shell', 'shellEnv', 'sandboxPolicy'], scope => registerCreatorConnection(scope, config))
+  if (config?.remoteConnectorRegion && config.remoteConnectorRegion !== 'off') {
+    ctx.inject(['tools', 'mcpManager', 'mcpAccounts'], scope => registerRemoteConnector(scope, config.remoteConnectorRegion))
+  }
+  if (config?.workspaceDemo === true) ctx.inject(['tools'], registerWorkspaceDemo)
 }
